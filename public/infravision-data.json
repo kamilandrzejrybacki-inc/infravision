@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T13:27:09.348Z",
+    "generated_at": "2026-03-31T13:36:20.555Z",
     "sources": {
       "netbox": "http://192.168.0.105:8081",
       "ansible": "/home/kamil-rybacki/Code/ansible",
@@ -25,12 +25,6 @@
       "hostIds": [
         "lw-nas"
       ]
-    },
-    {
-      "id": "k8s",
-      "cidr": "10.10.10.0/24",
-      "label": "KUBERNETES CLUSTER NODES (K8S-PROD)",
-      "hostIds": []
     }
   ],
   "hosts": [

@@ -208,16 +208,8 @@ async function main() {
     hostIds: [],
   });
 
-  // K8s overlay from NetBox
-  const k8sPrefix = physical.prefixes.find(p => p.description.toLowerCase().includes("kubernetes cluster"));
-  if (k8sPrefix) {
-    zones.push({
-      id: "k8s",
-      cidr: k8sPrefix.prefix,
-      label: k8sPrefix.description.toUpperCase(),
-      hostIds: [],
-    });
-  }
+  // K8s overlay (10.10.10.0/24) is an internal cluster network, not a physical zone
+  // lw-c1 sits on the primary network — no separate zone needed
 
   // Assign colors and zone membership to hosts
   const hosts = [...hostMap.values()].map((h, idx) => ({
