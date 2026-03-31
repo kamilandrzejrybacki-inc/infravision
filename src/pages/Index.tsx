@@ -195,7 +195,7 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
 
         <ReactFlow
           nodes={nodes}
-          edges={dimmedEdges}
+          edges={[]}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
