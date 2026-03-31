@@ -29,7 +29,6 @@
       "ip": ".107",
       "zone": "primary",
       "color": "0 65% 55%",
-      "services": [],
       "tags": ["automation", "dev-tools"]
     },
     {
@@ -38,7 +37,6 @@
       "ip": ".105",
       "zone": "primary",
       "color": "35 80% 55%",
-      "services": [],
       "tags": ["automation", "monitoring", "storage", "security"]
     },
     {
@@ -47,7 +45,6 @@
       "ip": ".108",
       "zone": "primary",
       "color": "160 50% 50%",
-      "services": [],
       "tags": ["files", "monitoring"]
     },
     {
@@ -56,7 +53,6 @@
       "ip": "10.0.1.2",
       "zone": "nas",
       "color": "220 50% 60%",
-      "services": [],
       "tags": ["storage", "monitoring"]
     }
   ],
