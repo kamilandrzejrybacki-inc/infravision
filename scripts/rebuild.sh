@@ -24,7 +24,12 @@ if [ -z "${ARGOCD_PASSWORD:-}" ] && [ -z "${ARGOCD_TOKEN:-}" ]; then
   echo "── Discovering ArgoCD credentials ──"
   K8S_HOST=$(grep -r 'ansible_host=' "${ANSIBLE_PATH:-}/k8s/k3s-setup/inventory/" 2>/dev/null | grep -oP 'ansible_host=\K[\d.]+' | head -1)
   if [ -n "$K8S_HOST" ]; then
-    ARGOCD_PASSWORD=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "kamil@${K8S_HOST}" \
+    # Try available SSH keys to reach the K8s node
+    SSH_KEY=""
+    for key in ~/.ssh/id_ed25519 ~/.ssh/n8n-backup-key ~/.ssh/id_rsa; do
+      [ -f "$key" ] && SSH_KEY="-i $key" && break
+    done
+    ARGOCD_PASSWORD=$(ssh $SSH_KEY -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=accept-new "kamil@${K8S_HOST}" \
       "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d" 2>/dev/null || echo "")
     if [ -n "$ARGOCD_PASSWORD" ]; then
       # Discover ArgoCD URL from k3s group_vars
