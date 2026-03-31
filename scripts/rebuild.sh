@@ -6,6 +6,13 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_DIR"
 
+# Source .env if present — export all variables for the pipeline
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  source "$PROJECT_DIR/.env"
+  set +a
+fi
+
 echo "═══ InfraVision Rebuild — $(date -Iseconds) ═══"
 
 # Pull latest code
