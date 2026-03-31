@@ -65,7 +65,7 @@ function InfraCanvas() {
     if (processedData && activeHosts.length === 0) {
       setActiveHosts(processedData.hosts.map(h => h.id));
     }
-  }, [processedData]);
+  }, [processedData, activeHosts]);
 
   const toggleLayer = useCallback((layer: string) => {
     setActiveLayers(prev =>
@@ -149,7 +149,7 @@ function InfraCanvas() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
 
-  useMemo(() => {
+  useEffect(() => {
     setNodes(layoutNodes);
   }, [layoutNodes, setNodes]);
 
