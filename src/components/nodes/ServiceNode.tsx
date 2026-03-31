@@ -16,14 +16,14 @@ interface ServiceData {
 }
 
 const syncColors: Record<string, string> = {
-  synced: "hsl(145, 60%, 50%)",
-  "out-of-sync": "hsl(40, 80%, 55%)",
-  failed: "hsl(0, 65%, 55%)",
+  synced: "hsl(145, 55%, 48%)",
+  "out-of-sync": "hsl(38, 78%, 54%)",
+  failed: "hsl(2, 62%, 52%)",
 };
 
 const ServiceNode = memo(({ data, id }: NodeProps) => {
   const { label, serviceData, isK8s, isLast } = data as unknown as ServiceData;
-  const isActive = serviceData.active !== false; // undefined/true = active
+  const isActive = serviceData.active !== false;
   const prefix = isK8s ? (isLast ? "└ " : "├ ") : "";
   const { hoveredServiceId, highlightedIds, onServiceHover, getDependencyBadges, getReverseDependencies, getDepColor } = useHighlight();
 
@@ -35,7 +35,6 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
   const isHighlighted = highlightedIds.has(id);
   const isDimmed = isHighlightActive && !isHighlighted;
 
-  // If this service IS a dependency target, show its own color dot
   const selfColor = isDepTarget ? getDepColor(id) : null;
 
   return (
@@ -43,37 +42,37 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
       style={{
         height: "auto",
         minHeight: 32,
-        padding: "6px 10px",
+        padding: "5px 10px",
         fontFamily: "'Inter', sans-serif",
         fontSize: 13,
-        color: isActive ? "hsla(0, 0%, 90%, 0.9)" : "hsla(220, 15%, 50%, 0.7)",
+        color: isActive ? "hsl(220, 10%, 91%)" : "hsl(220, 12%, 46%)",
         background: isHighlighted && isHighlightActive
-          ? "hsla(220, 25%, 28%, 0.6)"
+          ? "hsla(215, 24%, 26%, 0.65)"
           : "transparent",
         borderRadius: 4,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         gap: 4,
-        transition: "all 0.2s ease",
-        opacity: isDimmed ? 0.2 : (isActive ? 1 : 0.5),
+        transition: "background 0.12s ease, opacity 0.18s ease",
+        opacity: isDimmed ? 0.18 : (isActive ? 1 : 0.5),
         outline: isHighlighted && isHighlightActive
-          ? "1px solid hsla(210, 50%, 55%, 0.3)"
+          ? "1px solid hsla(215, 48%, 54%, 0.35)"
           : "none",
       }}
       onMouseEnter={() => onServiceHover(id)}
       onMouseLeave={() => onServiceHover(null)}
     >
-      {/* Single row: dots + name + dependency badges inline */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         {isK8s && serviceData.syncStatus && (
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 7,
+              height: 7,
               borderRadius: "50%",
               background: syncColors[serviceData.syncStatus] || syncColors.synced,
               flexShrink: 0,
+              marginRight: 2,
             }}
           />
         )}
@@ -85,7 +84,6 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
               borderRadius: "50%",
               background: `hsl(${selfColor})`,
               flexShrink: 0,
-              boxShadow: `0 0 4px hsla(${selfColor} / 0.5)`,
             }}
           />
         )}
@@ -101,13 +99,13 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
           <span style={{
             fontSize: 9,
             fontFamily: "'JetBrains Mono', monospace",
-            padding: "1px 5px",
-            borderRadius: 4,
-            background: "hsla(220, 20%, 25%, 0.6)",
-            color: "hsla(220, 15%, 50%, 0.8)",
-            border: "1px solid hsla(220, 20%, 35%, 0.4)",
+            padding: "1px 6px",
+            borderRadius: 3,
+            background: "hsla(220, 18%, 22%, 0.7)",
+            color: "hsl(220, 12%, 46%)",
+            border: "1px solid hsla(220, 18%, 32%, 0.5)",
             whiteSpace: "nowrap",
-            letterSpacing: "0.05em",
+            letterSpacing: "0.04em",
           }}>
             not deployed
           </span>
@@ -120,7 +118,7 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
               alignItems: "center",
               gap: 4,
               padding: "1px 7px",
-              borderRadius: 8,
+              borderRadius: 4,
               fontSize: 10,
               fontFamily: "'JetBrains Mono', monospace",
               background: `hsla(${badge.color} / 0.15)`,

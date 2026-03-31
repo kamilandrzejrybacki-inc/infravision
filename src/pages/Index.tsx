@@ -184,17 +184,17 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
             top: 0,
             left: 0,
             right: 0,
-            height: 40,
-            background: "hsla(222, 20%, 12%, 0.9)",
-            borderBottom: "1px solid hsla(220, 20%, 20%, 0.5)",
+            height: 36,
+            background: "hsla(220, 20%, 9%, 0.92)",
+            borderBottom: "1px solid hsla(220, 16%, 22%, 0.5)",
             display: "flex",
             alignItems: "center",
             paddingLeft: 16,
             zIndex: 10,
             fontFamily: "'Inter', sans-serif",
-            fontSize: 13,
-            color: "hsla(220, 15%, 55%, 0.8)",
-            backdropFilter: "blur(8px)",
+            fontSize: 12,
+            color: "hsl(220, 12%, 44%)",
+            backdropFilter: "blur(6px)",
           }}
         >
           InfraVision — Homelab Infrastructure Map
@@ -211,14 +211,14 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
           minZoom={0.3}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
-          style={{ background: "hsl(222, 25%, 10%)" }}
+          style={{ background: "hsl(220, 22%, 9%)" }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsla(220, 15%, 30%, 0.3)" />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsla(220, 14%, 28%, 0.25)" />
           <Controls showInteractive={false} style={{ bottom: 16, left: 16 }} />
           <MiniMap
             nodeStrokeWidth={3}
-            style={{ bottom: 16, right: selectedId ? 336 : 16 }}
-            maskColor="hsla(222, 25%, 5%, 0.7)"
+            style={{ bottom: 16, right: selectedId ? 316 : 16 }}
+            maskColor="hsla(220, 22%, 7%, 0.75)"
           />
         </ReactFlow>
       </div>
@@ -257,9 +257,9 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
-        <div style={{ color: 'hsla(220, 15%, 65%, 0.8)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
-          Loading infrastructure data...
+      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(220, 22%, 9%)' }}>
+        <div style={{ color: 'hsl(220, 12%, 44%)', fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}>
+          loading infrastructure data...
         </div>
       </div>
     );
@@ -268,8 +268,8 @@ export default function Index() {
   if (error) {
     const message = error instanceof Error ? error.message : 'Failed to load infrastructure data';
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
-        <div style={{ color: 'hsl(0, 65%, 55%)', fontSize: '14px', fontFamily: 'Inter, sans-serif', textAlign: 'center', maxWidth: 480, padding: '0 24px' }}>
+      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(220, 22%, 9%)' }}>
+        <div style={{ color: 'hsl(2, 62%, 52%)', fontSize: '13px', fontFamily: 'Inter, sans-serif', textAlign: 'center', maxWidth: 440, padding: '0 24px' }}>
           {message}
         </div>
       </div>

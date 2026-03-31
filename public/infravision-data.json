@@ -1,11 +1,10 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T00:00:00.000Z",
+    "generated_at": "2026-03-31T13:18:04.726Z",
     "sources": {
-      "netbox": "https://netbox.lab.local",
-      "ansible": "https://github.com/lab/ansible",
-      "argocd": "https://argocd.lab.local",
-      "prometheus": "https://prometheus.lab.local"
+      "netbox": "http://192.168.0.105:8081",
+      "ansible": "/home/kamil-rybacki/Code/ansible",
+      "grafana": "http://localhost:3000"
     }
   },
   "zones": [
@@ -13,47 +12,63 @@
       "id": "primary",
       "cidr": "192.168.0.0/24",
       "label": "PRIMARY NETWORK",
-      "hostIds": ["lw-c1", "lw-n1", "lw-n2"]
+      "hostIds": [
+        "lw-main",
+        "lw-s1",
+        "lw-c1"
+      ]
     },
     {
       "id": "nas",
       "cidr": "10.0.1.0/24",
       "label": "NAS SUBNET",
-      "hostIds": ["lw-nas"]
+      "hostIds": [
+        "lw-nas"
+      ]
+    },
+    {
+      "id": "k8s",
+      "cidr": "10.10.10.0/24",
+      "label": "KUBERNETES CLUSTER NODES (K8S-PROD)",
+      "hostIds": []
     }
   ],
   "hosts": [
     {
+      "id": "lw-main",
+      "label": "lw-main",
+      "ip": "192.168.0.105",
+      "zone": "primary",
+      "color": "2 62% 56%",
+      "tags": [
+        "claude-node"
+      ]
+    },
+    {
+      "id": "lw-s1",
+      "label": "lw-s1",
+      "ip": "192.168.0.108",
+      "zone": "primary",
+      "color": "35 75% 54%",
+      "tags": [
+        "claude-node"
+      ]
+    },
+    {
       "id": "lw-c1",
       "label": "lw-c1",
-      "ip": ".107",
+      "ip": "192.168.0.107",
       "zone": "primary",
-      "color": "0 65% 55%",
-      "tags": ["automation", "dev-tools"]
-    },
-    {
-      "id": "lw-n1",
-      "label": "lw-n1",
-      "ip": ".105",
-      "zone": "primary",
-      "color": "35 80% 55%",
-      "tags": ["automation", "monitoring", "storage", "security"]
-    },
-    {
-      "id": "lw-n2",
-      "label": "lw-n2",
-      "ip": ".108",
-      "zone": "primary",
-      "color": "160 50% 50%",
-      "tags": ["files", "monitoring"]
+      "color": "162 46% 48%",
+      "tags": []
     },
     {
       "id": "lw-nas",
       "label": "lw-nas",
       "ip": "10.0.1.2",
       "zone": "nas",
-      "color": "220 50% 60%",
-      "tags": ["storage", "monitoring"]
+      "color": "215 52% 58%",
+      "tags": []
     }
   ],
   "services": [
@@ -63,234 +78,312 @@
       "description": "GitOps continuous delivery tool",
       "hostId": "lw-c1",
       "type": "k8s",
-      "ports": [443],
-      "chart": "argo/argo-cd",
-      "dependencies": [],
-      "tags": ["automation", "dev-tools"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://argocd.lab.local", "icon": "🌐" },
-        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/argocd", "icon": "📊" }
+      "ports": [
+        8443
       ],
-      "syncStatus": "synced"
+      "dependencies": [],
+      "tags": [
+        "automation",
+        "dev-tools"
+      ],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://argocd.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
     },
     {
       "id": "n8n-workers",
       "label": "n8n-workers",
-      "description": "Distributed n8n worker nodes",
+      "description": "",
       "hostId": "lw-c1",
       "type": "k8s",
-      "ports": [5679],
-      "chart": "n8n/n8n",
-      "dependencies": ["postgresql", "redis"],
-      "tags": ["automation", "workflow"],
+      "ports": [],
+      "chart": "charts/n8n-workers",
+      "dependencies": [],
+      "tags": [],
       "quickLinks": [],
-      "syncStatus": "synced"
-    },
-    {
-      "id": "prefect-etl",
-      "label": "prefect-etl",
-      "description": "ETL orchestration with Prefect",
-      "hostId": "lw-c1",
-      "type": "k8s",
-      "ports": [4200],
-      "chart": "prefecthq/prefect-server",
-      "dependencies": ["postgresql"],
-      "tags": ["automation", "ai"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://prefect.lab.local", "icon": "🌐" }
-      ],
-      "syncStatus": "out-of-sync"
+      "active": true
     },
     {
       "id": "github-runners",
       "label": "github-runners",
-      "description": "Self-hosted GitHub Actions runners",
+      "description": "",
       "hostId": "lw-c1",
       "type": "k8s",
       "ports": [],
-      "chart": "actions/actions-runner-controller",
+      "chart": "charts/github-runners",
       "dependencies": [],
-      "tags": ["dev-tools", "automation"],
+      "tags": [],
       "quickLinks": [],
-      "syncStatus": "synced"
+      "active": true
     },
     {
-      "id": "caddy",
-      "label": "Caddy",
-      "description": "Reverse proxy and TLS termination",
-      "hostId": "lw-n1",
-      "type": "docker",
-      "ports": [80, 443],
-      "image": "caddy:2-alpine",
+      "id": "headlamp",
+      "label": "headlamp",
+      "description": "",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [],
+      "chart": "charts/headlamp",
       "dependencies": [],
-      "tags": ["security"],
+      "tags": [],
       "quickLinks": [
-        { "label": "NetBox Entry", "url": "https://netbox.lab.local/dcim/devices/caddy", "icon": "📦" }
-      ]
+        {
+          "label": "Open Web UI",
+          "url": "https://headlamp.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "portkey",
+      "label": "portkey",
+      "description": "",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [],
+      "chart": "charts/portkey",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "vcluster",
+      "label": "vcluster",
+      "description": "",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [],
+      "chart": "charts/vcluster",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
     },
     {
       "id": "n8n",
       "label": "n8n",
-      "description": "Workflow automation platform",
-      "hostId": "lw-n1",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-s1",
       "type": "docker",
-      "ports": [5678],
-      "image": "docker.n8n.io/n8nio/n8n",
-      "dependencies": ["postgresql", "redis"],
-      "tags": ["automation", "workflow"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://n8n.lab.local", "icon": "🌐" },
-        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/n8n", "icon": "📊" },
-        { "label": "NetBox Entry", "url": "https://netbox.lab.local/dcim/devices/n8n", "icon": "📦" }
-      ]
-    },
-    {
-      "id": "postgresql",
-      "label": "PostgreSQL",
-      "description": "Primary relational database",
-      "hostId": "lw-n1",
-      "type": "docker",
-      "ports": [5432],
-      "image": "postgres:16-alpine",
+      "ports": [],
       "dependencies": [],
-      "tags": ["storage"],
+      "tags": [
+        "automation"
+      ],
       "quickLinks": [
-        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/postgres", "icon": "📊" }
-      ]
-    },
-    {
-      "id": "redis",
-      "label": "Redis",
-      "description": "In-memory data store and message broker",
-      "hostId": "lw-n1",
-      "type": "docker",
-      "ports": [6379],
-      "image": "redis:7-alpine",
-      "dependencies": [],
-      "tags": ["storage"],
-      "quickLinks": []
+        {
+          "label": "Open Web UI",
+          "url": "https://n8n.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        },
+        {
+          "label": "Dashboard: n8n Operations",
+          "url": "https://grafana.kamilandrzejrybacki.dpdns.org/d/n8n-operations/n8n-operations",
+          "icon": "📊"
+        }
+      ],
+      "active": true
     },
     {
       "id": "grafana-stack",
-      "label": "Grafana stack",
-      "description": "Monitoring, alerting, and visualization",
-      "hostId": "lw-n1",
+      "label": "Grafana Stack",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-main",
       "type": "docker",
-      "ports": [3000],
-      "image": "grafana/grafana:latest",
-      "dependencies": ["postgresql"],
-      "tags": ["monitoring"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://grafana.lab.local", "icon": "🌐" }
-      ]
-    },
-    {
-      "id": "vault",
-      "label": "Vault",
-      "description": "Secrets management",
-      "hostId": "lw-n1",
-      "type": "docker",
-      "ports": [8200],
-      "image": "hashicorp/vault:latest",
-      "dependencies": [],
-      "tags": ["security"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://vault.lab.local", "icon": "🌐" }
-      ]
-    },
-    {
-      "id": "paperless",
-      "label": "Paperless",
-      "description": "Document management system",
-      "hostId": "lw-n2",
-      "type": "docker",
-      "ports": [8000],
-      "image": "paperlessngx/paperless-ngx",
-      "dependencies": ["postgresql", "redis"],
-      "tags": ["files", "ai"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://paperless.lab.local", "icon": "🌐" }
-      ]
-    },
-    {
-      "id": "seafile",
-      "label": "Seafile",
-      "description": "File sync and share platform",
-      "hostId": "lw-n2",
-      "type": "docker",
-      "ports": [8082],
-      "image": "seafileltd/seafile-mc",
-      "dependencies": [],
-      "tags": ["files", "storage"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://seafile.lab.local", "icon": "🌐" }
-      ]
-    },
-    {
-      "id": "uptime-kuma",
-      "label": "Uptime Kuma",
-      "description": "Uptime monitoring dashboard",
-      "hostId": "lw-n2",
-      "type": "docker",
-      "ports": [3001],
-      "image": "louislam/uptime-kuma",
-      "dependencies": [],
-      "tags": ["monitoring"],
-      "quickLinks": [
-        { "label": "Open Web UI", "url": "https://uptime.lab.local", "icon": "🌐" },
-        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/uptime", "icon": "📊" }
-      ]
-    },
-    {
-      "id": "mergerfs",
-      "label": "mergerfs pool",
-      "description": "JBOD filesystem pooling",
-      "hostId": "lw-nas",
-      "type": "native",
       "ports": [],
       "dependencies": [],
-      "tags": ["storage", "files"],
-      "quickLinks": []
-    },
-    {
-      "id": "snapraid",
-      "label": "SnapRAID",
-      "description": "Snapshot parity for disk arrays",
-      "hostId": "lw-nas",
-      "type": "native",
-      "ports": [],
-      "dependencies": ["mergerfs"],
-      "tags": ["storage"],
-      "quickLinks": []
+      "tags": [
+        "monitoring"
+      ],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://grafana.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
     },
     {
       "id": "mimir-loki",
       "label": "Mimir / Loki",
-      "description": "Long-term metrics and log storage",
+      "description": "Deploy Mimir + Loki on NAS",
       "hostId": "lw-nas",
       "type": "docker",
-      "ports": [3100, 9009],
-      "image": "grafana/mimir + grafana/loki",
+      "ports": [],
       "dependencies": [],
-      "tags": ["monitoring", "storage"],
+      "tags": [
+        "monitoring"
+      ],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "netbox",
+      "label": "Netbox",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "monitoring"
+      ],
       "quickLinks": [
-        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/mimir", "icon": "📊" }
-      ]
+        {
+          "label": "Open Web UI",
+          "url": "https://netbox.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "vault",
+      "label": "Vault",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "security"
+      ],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://hashi-vault.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "paperless",
+      "label": "Paperless",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "files"
+      ],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://paperless.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "stirling-pdf",
+      "label": "Stirling Pdf",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "files"
+      ],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://pdf.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "shared-mariadb",
+      "label": "MariaDB",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "infrastructure"
+      ],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "shared-postgres",
+      "label": "PostgreSQL",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "infrastructure"
+      ],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "shared-redis",
+      "label": "Redis",
+      "description": "Load saved homelab configuration (if available)",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "infrastructure"
+      ],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "mergerfs",
+      "label": "mergerfs pool",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "native",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "storage"
+      ],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "snapraid",
+      "label": "SnapRAID",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "native",
+      "ports": [],
+      "dependencies": [],
+      "tags": [
+        "storage"
+      ],
+      "quickLinks": [],
+      "active": true
     }
   ],
-  "connections": [
-    { "source": "n8n", "target": "postgresql", "type": "dependency" },
-    { "source": "n8n", "target": "redis", "type": "dependency" },
-    { "source": "n8n-workers", "target": "postgresql", "type": "dependency" },
-    { "source": "n8n-workers", "target": "redis", "type": "dependency" },
-    { "source": "prefect-etl", "target": "postgresql", "type": "dependency" },
-    { "source": "grafana-stack", "target": "postgresql", "type": "dependency" },
-    { "source": "paperless", "target": "postgresql", "type": "dependency" },
-    { "source": "paperless", "target": "redis", "type": "dependency" },
-    { "source": "snapraid", "target": "mergerfs", "type": "dependency" },
-    { "source": "lw-n1", "target": "lw-nas", "label": "USB-eth", "type": "physical" }
-  ],
+  "connections": [],
   "tags": [
-    "automation", "monitoring", "storage", "ai", "security", "files", "dev-tools", "workflow"
+    "automation",
+    "dev-tools",
+    "files",
+    "infrastructure",
+    "monitoring",
+    "security",
+    "storage"
   ]
 }

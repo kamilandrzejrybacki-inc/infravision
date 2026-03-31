@@ -14,22 +14,23 @@ const ZoneNode = memo(({ data }: NodeProps) => {
       style={{
         width,
         height,
-        background: "hsla(220, 15%, 18%, 0.4)",
-        border: "1px solid hsla(220, 20%, 35%, 0.5)",
-        borderRadius: 12,
+        background: "hsla(220, 16%, 17%, 0.35)",
+        border: "1px solid hsla(220, 16%, 34%, 0.4)",
+        borderRadius: 8,
         position: "relative",
       }}
     >
       <span
         style={{
           position: "absolute",
-          top: 12,
-          left: 16,
-          fontSize: 11,
+          top: 10,
+          left: 14,
+          fontSize: 10,
           fontWeight: 500,
-          color: "hsla(220, 20%, 65%, 0.8)",
-          letterSpacing: "0.05em",
-          fontFamily: "'Inter', sans-serif",
+          fontFamily: "'JetBrains Mono', monospace",
+          color: "hsl(220, 12%, 46%)",
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
         }}
       >
         {label}

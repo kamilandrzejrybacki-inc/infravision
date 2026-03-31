@@ -8,15 +8,16 @@ const K8sClusterNode = memo(({ data }: NodeProps) => {
       style={{
         width,
         height: 24,
-        borderLeft: "2px solid hsla(200, 60%, 50%, 0.6)",
+        borderLeft: "2px solid hsla(162, 46%, 48%, 0.6)",
         paddingLeft: 10,
         display: "flex",
         alignItems: "center",
-        fontFamily: "'Inter', sans-serif",
-        fontSize: 11,
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 10,
         fontWeight: 500,
-        color: "hsla(200, 50%, 65%, 0.8)",
-        letterSpacing: "0.03em",
+        color: "hsl(162, 46%, 52%)",
+        letterSpacing: "0.07em",
+        textTransform: "uppercase",
       }}
     >
       K3s cluster

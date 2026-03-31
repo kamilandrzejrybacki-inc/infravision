@@ -16,12 +16,9 @@ interface HostData {
 const HostNode = memo(({ data, id }: NodeProps) => {
   const { label, ip, color, width, height, physConn } = data as unknown as HostData;
   const borderColor = `hsl(${color})`;
-  const { hoveredServiceId, highlightedIds } = useHighlight();
+  const { hoveredServiceId } = useHighlight();
 
-  // Resolve physical connection partner label from node data
   const physPartner = physConn ? (physConn.source === id ? physConn.target : physConn.source) : null;
-
-  // Dim host if highlight is active and none of its children are highlighted
   const isHighlightActive = hoveredServiceId !== null;
 
   return (
@@ -29,31 +26,33 @@ const HostNode = memo(({ data, id }: NodeProps) => {
       style={{
         width,
         height,
-        background: "hsla(222, 20%, 14%, 0.95)",
-        border: "1px solid hsla(220, 20%, 30%, 0.6)",
-        borderLeft: `3px solid ${borderColor}`,
-        borderRadius: 8,
+        background: "hsl(220, 18%, 15%)",
+        border: "1px solid hsla(220, 18%, 32%, 0.5)",
+        borderLeft: `2px solid ${borderColor}`,
+        borderRadius: 6,
         overflow: "visible",
-        transition: "opacity 0.2s ease",
+        transition: "opacity 0.18s ease",
       }}
     >
       <div
         style={{
           padding: "10px 14px",
-          borderBottom: "1px solid hsla(220, 15%, 25%, 0.5)",
+          borderBottom: "1px solid hsla(220, 15%, 26%, 0.5)",
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
           gap: 6,
+          minHeight: 36,
         }}
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
           <span
             style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 600,
               color: borderColor,
+              letterSpacing: "0.02em",
             }}
           >
             {label}
@@ -63,27 +62,28 @@ const HostNode = memo(({ data, id }: NodeProps) => {
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: 11,
               fontWeight: 400,
-              color: "hsla(220, 15%, 55%, 0.8)",
+              color: "hsl(220, 12%, 46%)",
+              letterSpacing: "0.02em",
             }}
           >
             {ip}
           </span>
         </div>
 
-        {/* Physical connection badge */}
         {physConn && (
           <span
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              padding: "2px 8px",
-              borderRadius: 8,
+              padding: "2px 7px",
+              borderRadius: 4,
               fontSize: 10,
               fontFamily: "'JetBrains Mono', monospace",
-              background: "hsla(220, 45%, 55%, 0.15)",
-              color: "hsl(220, 45%, 65%)",
-              border: "1px solid hsla(220, 45%, 55%, 0.3)",
+              background: "hsla(215, 45%, 52%, 0.12)",
+              color: "hsl(215, 45%, 62%)",
+              border: "1px solid hsla(215, 45%, 52%, 0.25)",
+              letterSpacing: "0.02em",
             }}
           >
             <span style={{ fontSize: 9 }}>⇄</span>
