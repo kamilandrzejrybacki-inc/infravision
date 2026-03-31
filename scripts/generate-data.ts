@@ -4,7 +4,7 @@ import { config as loadDotEnv } from "dotenv";
 import type { PipelineConfig, InfraVisionOutput, DiscoveredService, CaddyRoute, GrafanaDashboard } from "./pipeline/types.js";
 import { discoverPhysicalLayer } from "./pipeline/netbox.js";
 import { discoverCaddyRoutes, discoverArgoApps, discoverK8sHost } from "./pipeline/ansible.js";
-import { discoverArgoCDApps } from "./pipeline/argocd.js";
+import { discoverArgoCDApps, getArgoCDSessionToken } from "./pipeline/argocd.js";
 import { discoverRunningContainers } from "./pipeline/prometheus.js";
 import { discoverPhysicalTopology } from "./pipeline/topology.js";
 import { discoverDependencies } from "./pipeline/dependencies.js";
@@ -30,6 +30,7 @@ const config: PipelineConfig = {
   argocd: {
     url: optionalEnv("ARGOCD_URL", ""),
     token: optionalEnv("ARGOCD_TOKEN", ""),
+    password: optionalEnv("ARGOCD_PASSWORD", ""),
   },
   grafana: {
     url: optionalEnv("GRAFANA_URL", ""),
@@ -80,8 +81,14 @@ async function main() {
 
   // 2a: K8s services — prefer live ArgoCD API, fallback to Ansible
   let k8sServices: DiscoveredService[] = [];
-  if (config.argocd.url && config.argocd.token) {
-    k8sServices = await discoverArgoCDApps(config.argocd);
+  if (config.argocd.url) {
+    let argoToken = config.argocd.token;
+    if (!argoToken && config.argocd.password) {
+      argoToken = await getArgoCDSessionToken(config.argocd.url, config.argocd.password) ?? "";
+    }
+    if (argoToken) {
+      k8sServices = await discoverArgoCDApps({ url: config.argocd.url, token: argoToken });
+    }
   }
   if (k8sServices.length === 0) {
     console.log("[pipeline] Falling back to Ansible for K8s app discovery");

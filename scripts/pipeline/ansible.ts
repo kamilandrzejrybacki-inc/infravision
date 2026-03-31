@@ -221,7 +221,7 @@ export async function discoverAnsibleServices(config: AnsibleConfig): Promise<Di
 
       services.push({
         id: serviceName,
-        label: prettifyServiceName(serviceName),
+        label: prettifyName(serviceName),
         description,
         hostId: targetHost,
         type: serviceType,
@@ -252,7 +252,7 @@ export async function discoverNasServices(config: AnsibleConfig): Promise<Discov
     const roleName = match[1];
     services.push({
       id: roleName,
-      label: prettifyServiceName(roleName),
+      label: prettifyName(roleName),
       description: "",
       hostId: "",
       type: "native",
@@ -327,21 +327,7 @@ async function extractPrimaryImage(dir: string): Promise<string | undefined> {
   return walk(dir);
 }
 
-function prettifyServiceName(id: string): string {
-  const nameMap: Record<string, string> = {
-    "n8n": "n8n",
-    "argocd": "ArgoCD",
-    "grafana-stack": "Grafana Stack",
-    "mimir-loki": "Mimir / Loki",
-    "kuma": "Uptime Kuma",
-    "shared-postgres": "PostgreSQL",
-    "shared-redis": "Redis",
-    "shared-mariadb": "MariaDB",
-    "mergerfs": "mergerfs pool",
-    "snapraid": "SnapRAID",
-    "k3s": "K3s",
-  };
-  if (nameMap[id]) return nameMap[id];
+function prettifyName(id: string): string {
   return id
     .split(/[-_]/)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))

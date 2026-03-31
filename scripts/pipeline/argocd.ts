@@ -12,7 +12,6 @@ interface ArgoCDApplication {
       repoURL?: string;
       path?: string;
       chart?: string;
-      helm?: { parameters?: Array<{ name: string; value: string }> };
     };
     destination?: { namespace?: string };
   };
@@ -26,21 +25,43 @@ interface ArgoCDAppList {
   items: ArgoCDApplication[];
 }
 
-/** Step 2a: Query ArgoCD API for live application status */
+/** Get a session token from ArgoCD using admin credentials */
+export async function getArgoCDSessionToken(url: string, password: string): Promise<string | null> {
+  if (!password) return null;
+
+  try {
+    const res = await fetch(`${url}/api/v1/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "admin", password }),
+    });
+
+    if (!res.ok) {
+      console.warn(`[argocd] Session login failed: ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json() as { token: string };
+    return data.token;
+  } catch (err) {
+    console.warn(`[argocd] Session login error: ${err}`);
+    return null;
+  }
+}
+
+/** Query ArgoCD API for live application status */
 export async function discoverArgoCDApps(config: ArgoCDConfig): Promise<DiscoveredService[]> {
-  console.log("[argocd] Querying applications...");
+  console.log("[argocd] Querying live applications...");
 
   const res = await fetch(`${config.url}/api/v1/applications`, {
     headers: {
       Authorization: `Bearer ${config.token}`,
       Accept: "application/json",
     },
-    // ArgoCD self-signed cert
-    ...(process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0" ? {} : {}),
   });
 
   if (!res.ok) {
-    console.warn(`[argocd] API returned ${res.status} — falling back to Ansible-discovered apps`);
+    console.warn(`[argocd] API returned ${res.status} — falling back to Ansible`);
     return [];
   }
 
@@ -50,24 +71,32 @@ export async function discoverArgoCDApps(config: ArgoCDConfig): Promise<Discover
   console.log(`[argocd] Found ${apps.length} live applications`);
 
   return apps.map(app => {
-    const syncStatus = app.status?.sync?.status?.toLowerCase() ?? "unknown";
-    const healthStatus = app.status?.health?.status?.toLowerCase() ?? "unknown";
+    const syncStatus = app.status?.sync?.status ?? "Unknown";
+    const healthStatus = app.status?.health?.status ?? "Unknown";
+    const normalizedSync = syncStatus === "Synced" ? "synced"
+      : syncStatus === "OutOfSync" ? "out-of-sync"
+      : syncStatus.toLowerCase();
 
     return {
       id: app.metadata.name,
-      label: app.metadata.name,
+      label: prettifyName(app.metadata.name),
       description: "",
-      hostId: "", // Will be resolved to K8s host
+      hostId: "",
       type: "k8s" as const,
       ports: [],
       chart: app.spec.source?.path ?? app.spec.source?.chart,
       namespace: app.spec.destination?.namespace ?? app.metadata.namespace,
       dependencies: [],
       tags: [],
-      active: healthStatus !== "missing" && healthStatus !== "unknown",
-      syncStatus: syncStatus === "synced" ? "synced"
-        : syncStatus === "outofsync" ? "out-of-sync"
-        : syncStatus,
+      active: healthStatus !== "Missing",
+      syncStatus: normalizedSync,
     };
   });
+}
+
+function prettifyName(name: string): string {
+  return name
+    .split(/[-_]/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }

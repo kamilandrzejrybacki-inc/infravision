@@ -69,7 +69,7 @@ export interface GrafanaDashboard {
 /** Pipeline configuration */
 export interface PipelineConfig {
   netbox: { url: string; token: string };
-  argocd: { url: string; token: string };
+  argocd: { url: string; token: string; password?: string };
   grafana: { url: string; token: string };
   domain: string;
   ansiblePath: string;

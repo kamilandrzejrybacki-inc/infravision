@@ -46,33 +46,22 @@ export async function discoverRunningContainers(config: PrometheusConfig): Promi
   const containers = body.data.result;
   console.log(`[prometheus] Found ${containers.length} running containers`);
 
-  // Infrastructure/monitoring containers to exclude from the service map
-  // These are plumbing, not user-facing services
-  const infraContainers = new Set([
-    "docker-exporter",
-    "alloy",
-    "nas-alloy",
-    "crowdsec",
-    "redis-exporter",
-    "postgres-exporter",
-    "mysqld-exporter",
-    "smartctl-exporter",
-    "n8n-vault-shim",
-    "lightpanda",             // MCP browser tool, not infra
-    "infravision-builder",    // ephemeral build container from rebuild.sh
-  ]);
+  // Filter out infrastructure/plumbing containers by image pattern
+  // Exporters, monitoring agents, sidecars, and ephemeral build containers
+  const infraImagePatterns = [
+    /exporter/i,            // *-exporter (docker, postgres, redis, smartctl, mysqld)
+    /grafana\/alloy/i,      // monitoring agent
+    /crowdsec/i,            // security agent
+    /vault-shim/i,          // sidecar shims
+    /infravision-builder/,  // ephemeral build container
+  ];
 
-  // Also filter out Docker auto-named containers (adjective_scientist pattern)
-  // These are ephemeral containers caught mid-scrape
+  // Docker auto-named containers (adjective_scientist pattern) are ephemeral
   const autoNameRegex = /^[a-z]+_[a-z]+$/;
 
-  // Containers that are sub-processes of a parent service (group them)
-  const subContainers: Record<string, string> = {
-    "netbox-worker": "netbox",
-    "netbox-housekeeping": "netbox",
-    "n8n-old": "n8n",           // legacy instance
-    "claude-backup-redis": "n8n", // support container
-  };
+  // Group sub-containers with their parent by detecting suffix patterns
+  // e.g., "netbox-worker" and "netbox-housekeeping" → "netbox"
+  const suffixPatterns = ["-worker", "-housekeeping", "-old", "-backup"];
 
   const services: DiscoveredService[] = [];
   const seen = new Set<string>();
@@ -82,18 +71,26 @@ export async function discoverRunningContainers(config: PrometheusConfig): Promi
     const instance = entry.metric.instance;
     const imageName = entry.metric.image_name || "";
 
-    // Skip infrastructure containers and ephemeral auto-named ones
-    if (infraContainers.has(name)) continue;
+    // Skip ephemeral auto-named containers
     if (autoNameRegex.test(name)) continue;
 
-    // Group sub-containers under parent
-    const serviceId = subContainers[name] ?? name;
+    // Skip infrastructure containers by image pattern
+    if (infraImagePatterns.some(p => p.test(imageName) || p.test(name))) continue;
+
+    // Group sub-containers under parent by stripping common suffixes
+    let serviceId = name;
+    for (const suffix of suffixPatterns) {
+      if (name.endsWith(suffix)) {
+        serviceId = name.slice(0, -suffix.length);
+        break;
+      }
+    }
     if (seen.has(`${instance}/${serviceId}`)) continue;
     seen.add(`${instance}/${serviceId}`);
 
     services.push({
       id: serviceId,
-      label: prettifyContainerName(serviceId),
+      label: prettifyName(serviceId),
       description: "",
       hostId: instance,
       type: "docker",
@@ -109,32 +106,8 @@ export async function discoverRunningContainers(config: PrometheusConfig): Promi
   return services;
 }
 
-function prettifyContainerName(name: string): string {
-  const nameMap: Record<string, string> = {
-    "grafana": "Grafana",
-    "caddy": "Caddy",
-    "vault": "Vault",
-    "pihole": "Pi-hole",
-    "authelia": "Authelia",
-    "homepage": "Homepage",
-    "nexterm": "Nexterm",
-    "netbox": "NetBox",
-    "n8n": "n8n",
-    "paperless": "Paperless",
-    "stirling-pdf": "Stirling PDF",
-    "filebrowser": "Filebrowser",
-    "loki": "Loki",
-    "mimir": "Mimir",
-    "shared-postgres": "PostgreSQL",
-    "shared-redis": "Redis",
-    "shared-mariadb": "MariaDB",
-    "wg-easy": "WireGuard",
-    "syncthing": "Syncthing",
-    "obsidian-couchdb": "Obsidian Livesync",
-    "obsidian-rest-api": "Obsidian REST API",
-    "quartz": "Quartz",
-  };
-  return nameMap[name] ?? name
+function prettifyName(name: string): string {
+  return name
     .split(/[-_]/)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
