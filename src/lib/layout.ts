@@ -4,7 +4,7 @@ import type { Node } from "@xyflow/react";
 
 const NETWORK_ZONE_PADDING = 60;
 const ZONE_LABEL_HEIGHT = 30;
-const HOST_NODE_WIDTH = 260;
+const HOST_NODE_WIDTH = 340;
 const HOST_GAP_X = 60;
 const HEADER_HEIGHT = 48;
 const SERVICE_NODE_HEIGHT = 32;
@@ -19,8 +19,8 @@ function serviceHasDeps(serviceId: string): boolean {
   return dependencies.some(d => d.source === serviceId);
 }
 
-function computeServiceRowHeight(serviceId: string): number {
-  return serviceHasDeps(serviceId) ? SERVICE_NODE_HEIGHT + 20 : SERVICE_NODE_HEIGHT;
+function computeServiceRowHeight(_serviceId: string): number {
+  return SERVICE_NODE_HEIGHT;
 }
 
 function computeHostHeight(host: Host): number {

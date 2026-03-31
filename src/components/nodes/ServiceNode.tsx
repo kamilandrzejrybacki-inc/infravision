@@ -62,8 +62,8 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
       onMouseEnter={() => onServiceHover(id)}
       onMouseLeave={() => onServiceHover(null)}
     >
-      {/* Main row: sync dot + name + self-color indicator */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* Single row: dots + name + dependency badges inline */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         {isK8s && serviceData.syncStatus && (
           <span
             style={{
@@ -90,46 +90,41 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
         <span style={{
           fontFamily: isK8s ? "'JetBrains Mono', monospace" : "inherit",
           fontSize: isK8s ? 12 : 13,
-          flex: 1,
+          whiteSpace: "nowrap",
         }}>
           {prefix}{label}
         </span>
-      </div>
-
-      {/* Dependency badges row */}
-      {badges.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingLeft: isK8s ? 14 : 0 }}>
-          {badges.map(badge => (
+        {badges.map(badge => (
+          <span
+            key={badge.targetId}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "1px 7px",
+              borderRadius: 8,
+              fontSize: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              background: `hsla(${badge.color} / 0.15)`,
+              color: `hsl(${badge.color})`,
+              border: `1px solid hsla(${badge.color} / 0.3)`,
+              lineHeight: "16px",
+              whiteSpace: "nowrap",
+            }}
+          >
             <span
-              key={badge.targetId}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "1px 7px",
-                borderRadius: 8,
-                fontSize: 10,
-                fontFamily: "'JetBrains Mono', monospace",
-                background: `hsla(${badge.color} / 0.15)`,
-                color: `hsl(${badge.color})`,
-                border: `1px solid hsla(${badge.color} / 0.3)`,
-                lineHeight: "16px",
+                width: 5,
+                height: 5,
+                borderRadius: "50%",
+                background: `hsl(${badge.color})`,
+                flexShrink: 0,
               }}
-            >
-              <span
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  background: `hsl(${badge.color})`,
-                  flexShrink: 0,
-                }}
-              />
-              {badge.targetLabel}
-            </span>
-          ))}
-        </div>
-      )}
+            />
+            {badge.targetLabel}
+          </span>
+        ))}
+      </div>
       <Handle type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle type="target" position={Position.Left} style={{ opacity: 0, pointerEvents: "none" }} />
     </div>
