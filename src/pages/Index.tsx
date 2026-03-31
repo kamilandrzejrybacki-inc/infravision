@@ -97,7 +97,6 @@ function InfraCanvas() {
   const dimmedEdges = useMemo(() => {
     if (!hoveredServiceId) return edges;
     const connectedServices = getDirectConnections(hoveredServiceId);
-    connectedServices.add(hoveredServiceId);
 
     return edges.map(edge => {
       const isHighlighted = connectedServices.has(edge.source) || connectedServices.has(edge.target);
@@ -111,7 +110,7 @@ function InfraCanvas() {
         },
       };
     });
-  }, [edges, hoveredServiceId]);
+  }, [edges, hoveredServiceId, getDirectConnections]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
 
