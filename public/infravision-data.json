@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T15:41:55.964Z",
+    "generated_at": "2026-03-31T16:38:09.805Z",
     "sources": {
       "netbox": "http://192.168.0.105:8081",
       "ansible": "/home/kamil-rybacki/Code/ansible",
@@ -9,22 +9,14 @@
   },
   "zones": [
     {
-      "id": "primary",
+      "id": "net-192-168-0",
       "cidr": "192.168.0.0/24",
-      "label": "PRIMARY NETWORK",
+      "label": "192.168.0.0/24",
       "hostIds": [
+        "lw-c1",
+        "router-192.168.0",
         "lw-main",
         "lw-s1",
-        "lw-c1",
-        "router",
-        "switch"
-      ]
-    },
-    {
-      "id": "nas",
-      "cidr": "10.0.1.0/24",
-      "label": "NAS SUBNET",
-      "hostIds": [
         "lw-nas"
       ]
     }
@@ -33,8 +25,8 @@
     {
       "id": "lw-main",
       "label": "lw-main",
-      "ip": "192.168.0.105",
-      "zone": "primary",
+      "ip": "",
+      "zone": "net-192-168-0",
       "color": "2 62% 56%",
       "tags": [
         "claude-node"
@@ -43,8 +35,8 @@
     {
       "id": "lw-s1",
       "label": "lw-s1",
-      "ip": "192.168.0.108",
-      "zone": "primary",
+      "ip": "",
+      "zone": "net-192-168-0",
       "color": "35 75% 54%",
       "tags": [
         "claude-node"
@@ -54,36 +46,26 @@
       "id": "lw-c1",
       "label": "lw-c1",
       "ip": "192.168.0.107",
-      "zone": "primary",
+      "zone": "net-192-168-0",
       "color": "162 46% 48%",
       "tags": []
     },
     {
       "id": "lw-nas",
       "label": "lw-nas",
-      "ip": "10.0.1.2",
-      "zone": "nas",
+      "ip": "",
+      "zone": "net-192-168-0",
       "color": "215 52% 58%",
       "tags": []
     },
     {
-      "id": "router",
-      "label": "Router",
+      "id": "router-192.168.0",
+      "label": "Router (192.168.0.1)",
       "ip": "192.168.0.1",
-      "zone": "primary",
+      "zone": "net-192-168-0",
       "color": "268 42% 58%",
       "tags": [
         "router"
-      ]
-    },
-    {
-      "id": "switch",
-      "label": "LAN Switch",
-      "ip": "",
-      "zone": "primary",
-      "color": "330 50% 55%",
-      "tags": [
-        "switch"
       ]
     }
   ],
@@ -184,7 +166,7 @@
     },
     {
       "id": "shared-redis",
-      "label": "Redis",
+      "label": "Shared Redis",
       "description": "",
       "hostId": "lw-nas",
       "type": "docker",
@@ -197,7 +179,7 @@
     },
     {
       "id": "pihole",
-      "label": "Pi-hole",
+      "label": "Pihole",
       "description": "",
       "hostId": "lw-main",
       "type": "docker",
@@ -216,7 +198,7 @@
     },
     {
       "id": "shared-postgres",
-      "label": "PostgreSQL",
+      "label": "Shared Postgres",
       "description": "",
       "hostId": "lw-nas",
       "type": "docker",
@@ -237,7 +219,13 @@
       "image": "ghcr:gethomepage/homepage:v0.9.13",
       "dependencies": [],
       "tags": [],
-      "quickLinks": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://home.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
       "active": true
     },
     {
@@ -255,7 +243,7 @@
     },
     {
       "id": "netbox",
-      "label": "NetBox",
+      "label": "Netbox",
       "description": "",
       "hostId": "lw-main",
       "type": "docker",
@@ -274,7 +262,7 @@
     },
     {
       "id": "stirling-pdf",
-      "label": "Stirling PDF",
+      "label": "Stirling Pdf",
       "description": "",
       "hostId": "lw-nas",
       "type": "docker",
@@ -282,13 +270,7 @@
       "image": "frooodle/s-pdf:0.36.5",
       "dependencies": [],
       "tags": [],
-      "quickLinks": [
-        {
-          "label": "Open Web UI",
-          "url": "https://pdf.kamilandrzejrybacki.dpdns.org",
-          "icon": "🌐"
-        }
-      ],
+      "quickLinks": [],
       "active": true
     },
     {
@@ -320,12 +302,18 @@
       "image": "authelia/authelia:4.38",
       "dependencies": [],
       "tags": [],
-      "quickLinks": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://auth.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
       "active": true
     },
     {
       "id": "obsidian-couchdb",
-      "label": "Obsidian Livesync",
+      "label": "Obsidian Couchdb",
       "description": "",
       "hostId": "lw-nas",
       "type": "docker",
@@ -338,7 +326,7 @@
     },
     {
       "id": "wg-easy",
-      "label": "WireGuard",
+      "label": "Wg Easy",
       "description": "",
       "hostId": "lw-main",
       "type": "docker",
@@ -401,13 +389,26 @@
       "active": true
     },
     {
-      "id": "n8n",
-      "label": "n8n",
+      "id": "claude-backup-redis",
+      "label": "Claude Backup Redis",
       "description": "",
       "hostId": "lw-s1",
       "type": "docker",
       "ports": [],
       "image": "redis:7-alpine",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "n8n",
+      "label": "N8n",
+      "description": "",
+      "hostId": "lw-s1",
+      "type": "docker",
+      "ports": [],
+      "image": "docker.n8n.io/n8nio/n8n",
       "dependencies": [],
       "tags": [],
       "quickLinks": [
@@ -426,7 +427,7 @@
     },
     {
       "id": "shared-mariadb",
-      "label": "MariaDB",
+      "label": "Shared Mariadb",
       "description": "",
       "hostId": "lw-nas",
       "type": "docker",
@@ -439,7 +440,7 @@
     },
     {
       "id": "obsidian-rest-api",
-      "label": "Obsidian REST API",
+      "label": "Obsidian Rest Api",
       "description": "",
       "hostId": "lw-nas",
       "type": "docker",
@@ -515,6 +516,19 @@
       "active": true
     },
     {
+      "id": "infravision",
+      "label": "Infravision",
+      "description": "",
+      "hostId": "lw-s1",
+      "type": "docker",
+      "ports": [],
+      "image": "nginx:alpine",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
       "id": "syncthing",
       "label": "Syncthing",
       "description": "",
@@ -526,17 +540,25 @@
       "tags": [],
       "quickLinks": [],
       "active": true
+    },
+    {
+      "id": "lightpanda",
+      "label": "Lightpanda",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "lightpanda/browser:nightly",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
     }
   ],
   "connections": [
     {
-      "source": "netbox",
-      "target": "shared-postgres",
-      "type": "dependency"
-    },
-    {
-      "source": "netbox",
-      "target": "shared-redis",
+      "source": "paperless",
+      "target": "claude-backup-redis",
       "type": "dependency"
     },
     {
@@ -545,59 +567,14 @@
       "type": "dependency"
     },
     {
-      "source": "paperless",
-      "target": "shared-redis",
+      "source": "netbox",
+      "target": "claude-backup-redis",
       "type": "dependency"
     },
     {
-      "source": "n8n",
+      "source": "netbox",
       "target": "shared-postgres",
       "type": "dependency"
-    },
-    {
-      "source": "n8n",
-      "target": "shared-redis",
-      "type": "dependency"
-    },
-    {
-      "source": "grafana",
-      "target": "mimir",
-      "type": "dependency"
-    },
-    {
-      "source": "grafana",
-      "target": "loki",
-      "type": "dependency"
-    },
-    {
-      "source": "lw-main",
-      "target": "lw-nas",
-      "type": "physical",
-      "label": "USB-eth"
-    },
-    {
-      "source": "router",
-      "target": "switch",
-      "type": "physical",
-      "label": "Uplink"
-    },
-    {
-      "source": "lw-main",
-      "target": "switch",
-      "type": "physical",
-      "label": "Ethernet"
-    },
-    {
-      "source": "lw-s1",
-      "target": "switch",
-      "type": "physical",
-      "label": "Ethernet"
-    },
-    {
-      "source": "lw-c1",
-      "target": "switch",
-      "type": "physical",
-      "label": "Ethernet"
     }
   ],
   "tags": [
