@@ -243,3 +243,11 @@ export function getServiceById(id: string): Service | undefined {
 export function getHostById(id: string): Host | undefined {
   return hosts.find(h => h.id === id);
 }
+
+export async function loadInfrastructureData(): Promise<InfraVisionData> {
+  const response = await fetch('/infravision-data.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load infrastructure data: ${response.status}`);
+  }
+  return response.json();
+}

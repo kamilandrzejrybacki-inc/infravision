@@ -1,0 +1,300 @@
+{
+  "metadata": {
+    "generated_at": "2026-03-31T00:00:00.000Z",
+    "sources": {
+      "netbox": "https://netbox.lab.local",
+      "ansible": "https://github.com/lab/ansible",
+      "argocd": "https://argocd.lab.local",
+      "prometheus": "https://prometheus.lab.local"
+    }
+  },
+  "zones": [
+    {
+      "id": "primary",
+      "cidr": "192.168.0.0/24",
+      "label": "PRIMARY NETWORK",
+      "hostIds": ["lw-c1", "lw-n1", "lw-n2"]
+    },
+    {
+      "id": "nas",
+      "cidr": "10.0.1.0/24",
+      "label": "NAS SUBNET",
+      "hostIds": ["lw-nas"]
+    }
+  ],
+  "hosts": [
+    {
+      "id": "lw-c1",
+      "label": "lw-c1",
+      "ip": ".107",
+      "zone": "primary",
+      "color": "0 65% 55%",
+      "services": [],
+      "tags": ["automation", "dev-tools"]
+    },
+    {
+      "id": "lw-n1",
+      "label": "lw-n1",
+      "ip": ".105",
+      "zone": "primary",
+      "color": "35 80% 55%",
+      "services": [],
+      "tags": ["automation", "monitoring", "storage", "security"]
+    },
+    {
+      "id": "lw-n2",
+      "label": "lw-n2",
+      "ip": ".108",
+      "zone": "primary",
+      "color": "160 50% 50%",
+      "services": [],
+      "tags": ["files", "monitoring"]
+    },
+    {
+      "id": "lw-nas",
+      "label": "lw-nas",
+      "ip": "10.0.1.2",
+      "zone": "nas",
+      "color": "220 50% 60%",
+      "services": [],
+      "tags": ["storage", "monitoring"]
+    }
+  ],
+  "services": [
+    {
+      "id": "argocd",
+      "label": "ArgoCD",
+      "description": "GitOps continuous delivery tool",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [443],
+      "chart": "argo/argo-cd",
+      "dependencies": [],
+      "tags": ["automation", "dev-tools"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://argocd.lab.local", "icon": "🌐" },
+        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/argocd", "icon": "📊" }
+      ],
+      "syncStatus": "synced"
+    },
+    {
+      "id": "n8n-workers",
+      "label": "n8n-workers",
+      "description": "Distributed n8n worker nodes",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [5679],
+      "chart": "n8n/n8n",
+      "dependencies": ["postgresql", "redis"],
+      "tags": ["automation", "workflow"],
+      "quickLinks": [],
+      "syncStatus": "synced"
+    },
+    {
+      "id": "prefect-etl",
+      "label": "prefect-etl",
+      "description": "ETL orchestration with Prefect",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [4200],
+      "chart": "prefecthq/prefect-server",
+      "dependencies": ["postgresql"],
+      "tags": ["automation", "ai"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://prefect.lab.local", "icon": "🌐" }
+      ],
+      "syncStatus": "out-of-sync"
+    },
+    {
+      "id": "github-runners",
+      "label": "github-runners",
+      "description": "Self-hosted GitHub Actions runners",
+      "hostId": "lw-c1",
+      "type": "k8s",
+      "ports": [],
+      "chart": "actions/actions-runner-controller",
+      "dependencies": [],
+      "tags": ["dev-tools", "automation"],
+      "quickLinks": [],
+      "syncStatus": "synced"
+    },
+    {
+      "id": "caddy",
+      "label": "Caddy",
+      "description": "Reverse proxy and TLS termination",
+      "hostId": "lw-n1",
+      "type": "docker",
+      "ports": [80, 443],
+      "image": "caddy:2-alpine",
+      "dependencies": [],
+      "tags": ["security"],
+      "quickLinks": [
+        { "label": "NetBox Entry", "url": "https://netbox.lab.local/dcim/devices/caddy", "icon": "📦" }
+      ]
+    },
+    {
+      "id": "n8n",
+      "label": "n8n",
+      "description": "Workflow automation platform",
+      "hostId": "lw-n1",
+      "type": "docker",
+      "ports": [5678],
+      "image": "docker.n8n.io/n8nio/n8n",
+      "dependencies": ["postgresql", "redis"],
+      "tags": ["automation", "workflow"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://n8n.lab.local", "icon": "🌐" },
+        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/n8n", "icon": "📊" },
+        { "label": "NetBox Entry", "url": "https://netbox.lab.local/dcim/devices/n8n", "icon": "📦" }
+      ]
+    },
+    {
+      "id": "postgresql",
+      "label": "PostgreSQL",
+      "description": "Primary relational database",
+      "hostId": "lw-n1",
+      "type": "docker",
+      "ports": [5432],
+      "image": "postgres:16-alpine",
+      "dependencies": [],
+      "tags": ["storage"],
+      "quickLinks": [
+        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/postgres", "icon": "📊" }
+      ]
+    },
+    {
+      "id": "redis",
+      "label": "Redis",
+      "description": "In-memory data store and message broker",
+      "hostId": "lw-n1",
+      "type": "docker",
+      "ports": [6379],
+      "image": "redis:7-alpine",
+      "dependencies": [],
+      "tags": ["storage"],
+      "quickLinks": []
+    },
+    {
+      "id": "grafana-stack",
+      "label": "Grafana stack",
+      "description": "Monitoring, alerting, and visualization",
+      "hostId": "lw-n1",
+      "type": "docker",
+      "ports": [3000],
+      "image": "grafana/grafana:latest",
+      "dependencies": ["postgresql"],
+      "tags": ["monitoring"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://grafana.lab.local", "icon": "🌐" }
+      ]
+    },
+    {
+      "id": "vault",
+      "label": "Vault",
+      "description": "Secrets management",
+      "hostId": "lw-n1",
+      "type": "docker",
+      "ports": [8200],
+      "image": "hashicorp/vault:latest",
+      "dependencies": [],
+      "tags": ["security"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://vault.lab.local", "icon": "🌐" }
+      ]
+    },
+    {
+      "id": "paperless",
+      "label": "Paperless",
+      "description": "Document management system",
+      "hostId": "lw-n2",
+      "type": "docker",
+      "ports": [8000],
+      "image": "paperlessngx/paperless-ngx",
+      "dependencies": ["postgresql", "redis"],
+      "tags": ["files", "ai"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://paperless.lab.local", "icon": "🌐" }
+      ]
+    },
+    {
+      "id": "seafile",
+      "label": "Seafile",
+      "description": "File sync and share platform",
+      "hostId": "lw-n2",
+      "type": "docker",
+      "ports": [8082],
+      "image": "seafileltd/seafile-mc",
+      "dependencies": [],
+      "tags": ["files", "storage"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://seafile.lab.local", "icon": "🌐" }
+      ]
+    },
+    {
+      "id": "uptime-kuma",
+      "label": "Uptime Kuma",
+      "description": "Uptime monitoring dashboard",
+      "hostId": "lw-n2",
+      "type": "docker",
+      "ports": [3001],
+      "image": "louislam/uptime-kuma",
+      "dependencies": [],
+      "tags": ["monitoring"],
+      "quickLinks": [
+        { "label": "Open Web UI", "url": "https://uptime.lab.local", "icon": "🌐" },
+        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/uptime", "icon": "📊" }
+      ]
+    },
+    {
+      "id": "mergerfs",
+      "label": "mergerfs pool",
+      "description": "JBOD filesystem pooling",
+      "hostId": "lw-nas",
+      "type": "native",
+      "ports": [],
+      "dependencies": [],
+      "tags": ["storage", "files"],
+      "quickLinks": []
+    },
+    {
+      "id": "snapraid",
+      "label": "SnapRAID",
+      "description": "Snapshot parity for disk arrays",
+      "hostId": "lw-nas",
+      "type": "native",
+      "ports": [],
+      "dependencies": ["mergerfs"],
+      "tags": ["storage"],
+      "quickLinks": []
+    },
+    {
+      "id": "mimir-loki",
+      "label": "Mimir / Loki",
+      "description": "Long-term metrics and log storage",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [3100, 9009],
+      "image": "grafana/mimir + grafana/loki",
+      "dependencies": [],
+      "tags": ["monitoring", "storage"],
+      "quickLinks": [
+        { "label": "Grafana Dashboard", "url": "https://grafana.lab.local/d/mimir", "icon": "📊" }
+      ]
+    }
+  ],
+  "connections": [
+    { "source": "n8n", "target": "postgresql", "type": "dependency" },
+    { "source": "n8n", "target": "redis", "type": "dependency" },
+    { "source": "n8n-workers", "target": "postgresql", "type": "dependency" },
+    { "source": "n8n-workers", "target": "redis", "type": "dependency" },
+    { "source": "prefect-etl", "target": "postgresql", "type": "dependency" },
+    { "source": "grafana-stack", "target": "postgresql", "type": "dependency" },
+    { "source": "paperless", "target": "postgresql", "type": "dependency" },
+    { "source": "paperless", "target": "redis", "type": "dependency" },
+    { "source": "snapraid", "target": "mergerfs", "type": "dependency" },
+    { "source": "lw-n1", "target": "lw-nas", "label": "USB-eth", "type": "physical" }
+  ],
+  "tags": [
+    "automation", "monitoring", "storage", "ai", "security", "files", "dev-tools", "workflow"
+  ]
+}

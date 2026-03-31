@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ReactFlow,
   Background,
@@ -18,7 +19,8 @@ import K8sClusterNode from "@/components/nodes/K8sClusterNode";
 import Sidebar from "@/components/Sidebar";
 import DetailPanel from "@/components/DetailPanel";
 import { HighlightProvider, useHighlight, getDirectConnections } from "@/lib/highlight";
-import { zones, hosts, getAllServices, getConnections } from "@/data/infrastructure";
+import { zones, loadInfrastructureData } from "@/data/infrastructure";
+import type { Host } from "@/data/types";
 import { computeLayout } from "@/lib/layout";
 import { buildEdges } from "@/lib/edges";
 
@@ -34,9 +36,30 @@ function InfraCanvas() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeLayers, setActiveLayers] = useState(["physical", "services", "k8s"]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [activeHosts, setActiveHosts] = useState<string[]>(hosts.map(h => h.id));
+  const [activeHosts, setActiveHosts] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<"service" | "host" | null>(null);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['infrastructure'],
+    queryFn: loadInfrastructureData,
+    staleTime: Infinity,
+  });
+
+  const processedData = useMemo(() => {
+    if (!data) return null;
+    const hosts: Host[] = data.hosts.map(h => ({
+      ...h,
+      services: data.services.filter(s => s.hostId === h.id),
+    }));
+    return {
+      hosts,
+      zones: data.zones,
+      connections: data.connections,
+      tags: data.tags,
+      metadata: data.metadata,
+    };
+  }, [data]);
 
   const toggleLayer = useCallback((layer: string) => {
     setActiveLayers(prev =>
@@ -58,7 +81,10 @@ function InfraCanvas() {
 
   const layoutNodes = useMemo(() => {
     const { nodes } = computeLayout(zones, activeLayers, activeTags);
-    const allServices = getAllServices();
+    const allServices = processedData?.hosts.flatMap(h => h.services) ?? [];
+    const effectiveActiveHosts = activeHosts.length > 0
+      ? activeHosts
+      : (processedData?.hosts.map(h => h.id) ?? []);
     const query = searchQuery.toLowerCase();
 
     return nodes.map(node => {
@@ -69,12 +95,12 @@ function InfraCanvas() {
         if (svcData.type === "k8s" && !activeLayers.includes("k8s")) dimmed = true;
         if (svcData.type !== "k8s" && !activeLayers.includes("services")) dimmed = true;
         if (activeTags.length > 0 && !activeTags.some((t: string) => svcData.tags.includes(t))) dimmed = true;
-        if (!activeHosts.includes(svcData.hostId)) dimmed = true;
+        if (!effectiveActiveHosts.includes(svcData.hostId)) dimmed = true;
         if (query && !svcData.label?.toLowerCase().includes(query) && !svcData.hostId?.toLowerCase().includes(query)) dimmed = true;
       }
 
       if (node.type === "host") {
-        if (!activeHosts.includes(node.id)) dimmed = true;
+        if (!effectiveActiveHosts.includes(node.id)) dimmed = true;
         if (query && !node.id.toLowerCase().includes(query)) {
           const hostServices = allServices.filter(s => s.hostId === node.id);
           if (!hostServices.some(s => s.label.toLowerCase().includes(query))) dimmed = true;
@@ -90,9 +116,12 @@ function InfraCanvas() {
         },
       };
     });
-  }, [activeLayers, activeTags, activeHosts, searchQuery]);
+  }, [activeLayers, activeTags, activeHosts, searchQuery, processedData]);
 
-  const edges = useMemo(() => buildEdges(getConnections()), []);
+  const edges = useMemo(
+    () => buildEdges(processedData?.connections ?? []),
+    [processedData?.connections]
+  );
 
   const dimmedEdges = useMemo(() => {
     if (!hoveredServiceId) return edges;
@@ -128,6 +157,26 @@ function InfraCanvas() {
     }
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
+        <div style={{ color: 'hsla(220, 15%, 65%, 0.8)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
+          Loading infrastructure data...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
+        <div style={{ color: 'hsl(0, 65%, 55%)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
+          Failed to load infrastructure data
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
       <Sidebar
@@ -139,6 +188,9 @@ function InfraCanvas() {
         onToggleTag={toggleTag}
         activeHosts={activeHosts}
         onToggleHost={toggleHost}
+        generatedAt={processedData?.metadata?.generated_at}
+        tags={processedData?.tags ?? []}
+        hosts={processedData?.hosts ?? []}
       />
 
       <div style={{ flex: 1, position: "relative" }}>

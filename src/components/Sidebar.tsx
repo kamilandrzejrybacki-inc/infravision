@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { allTags, hosts, HOST_COLORS } from "@/data/infrastructure";
+import type { Host } from "@/data/types";
 
 interface SidebarProps {
   searchQuery: string;
@@ -10,6 +10,9 @@ interface SidebarProps {
   onToggleTag: (tag: string) => void;
   activeHosts: string[];
   onToggleHost: (hostId: string) => void;
+  generatedAt?: string;
+  tags?: string[];
+  hosts?: Host[];
 }
 
 const layers = [
@@ -23,6 +26,9 @@ export default function Sidebar({
   activeLayers, onToggleLayer,
   activeTags, onToggleTag,
   activeHosts, onToggleHost,
+  generatedAt,
+  tags = [],
+  hosts = [],
 }: SidebarProps) {
   return (
     <div
@@ -94,7 +100,7 @@ export default function Sidebar({
       {/* Tags */}
       <SectionLabel>TAGS</SectionLabel>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
-        {allTags.map(tag => {
+        {tags.map(tag => {
           const active = activeTags.includes(tag);
           return (
             <button
@@ -149,6 +155,14 @@ export default function Sidebar({
           );
         })}
       </div>
+
+      {generatedAt && (
+        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid hsla(220,20%,25%,0.5)' }}>
+          <span style={{ fontSize: '10px', color: 'hsla(220,15%,50%,0.6)' }}>
+            Updated: {new Date(generatedAt).toLocaleString()}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
