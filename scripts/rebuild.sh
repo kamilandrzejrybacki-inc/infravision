@@ -22,6 +22,7 @@ fi
 # so npm ci works without permission issues, then copy dist/ back
 echo "── Building ──"
 docker run --rm \
+  --name infravision-builder \
   --network host \
   -v "$PROJECT_DIR":/src:ro \
   -v "${ANSIBLE_PATH:-/home/kamil/Code/ansible}":/ansible:ro \

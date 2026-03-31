@@ -58,8 +58,13 @@ export async function discoverRunningContainers(config: PrometheusConfig): Promi
     "mysqld-exporter",
     "smartctl-exporter",
     "n8n-vault-shim",
-    "lightpanda",       // MCP browser tool, not infra
+    "lightpanda",             // MCP browser tool, not infra
+    "infravision-builder",    // ephemeral build container from rebuild.sh
   ]);
+
+  // Also filter out Docker auto-named containers (adjective_scientist pattern)
+  // These are ephemeral containers caught mid-scrape
+  const autoNameRegex = /^[a-z]+_[a-z]+$/;
 
   // Containers that are sub-processes of a parent service (group them)
   const subContainers: Record<string, string> = {
@@ -77,8 +82,9 @@ export async function discoverRunningContainers(config: PrometheusConfig): Promi
     const instance = entry.metric.instance;
     const imageName = entry.metric.image_name || "";
 
-    // Skip infrastructure containers
+    // Skip infrastructure containers and ephemeral auto-named ones
     if (infraContainers.has(name)) continue;
+    if (autoNameRegex.test(name)) continue;
 
     // Group sub-containers under parent
     const serviceId = subContainers[name] ?? name;
