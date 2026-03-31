@@ -49,6 +49,7 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
   const [activeLayers, setActiveLayers] = useState(["physical", "services", "k8s"]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [activeHosts, setActiveHosts] = useState<string[]>([]);
+  const [showInactive, setShowInactive] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<"service" | "host" | null>(null);
 
@@ -93,6 +94,7 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
         if (svcData.type !== "k8s" && !activeLayers.includes("services")) dimmed = true;
         if (activeTags.length > 0 && !activeTags.some((t: string) => svcData.tags.includes(t))) dimmed = true;
         if (!effectiveActiveHosts.includes(svcData.hostId)) dimmed = true;
+        if (!showInactive && svcData.active === false) dimmed = true;
         if (query && !svcData.label?.toLowerCase().includes(query) && !svcData.hostId?.toLowerCase().includes(query)) dimmed = true;
       }
 
@@ -113,7 +115,7 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
         },
       };
     });
-  }, [activeLayers, activeTags, activeHosts, searchQuery, processedData]);
+  }, [activeLayers, activeTags, activeHosts, showInactive, searchQuery, processedData]);
 
   const edges = useMemo(
     () => buildEdges(processedData.connections),
@@ -165,6 +167,8 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
         onToggleTag={toggleTag}
         activeHosts={activeHosts}
         onToggleHost={toggleHost}
+        showInactive={showInactive}
+        onToggleInactive={() => setShowInactive(v => !v)}
         generatedAt={processedData.metadata?.generated_at}
         tags={processedData.tags}
         hosts={processedData.hosts}

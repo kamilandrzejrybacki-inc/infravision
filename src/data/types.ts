@@ -20,6 +20,7 @@ export interface Service {
   quickLinks: QuickLink[];
   ansiblePlaybook?: string;
   argocdApp?: string;
+  active?: boolean; // false = defined in Ansible but not deployed/running
 }
 
 export interface Host {

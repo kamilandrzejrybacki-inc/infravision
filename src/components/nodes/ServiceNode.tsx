@@ -9,6 +9,7 @@ interface ServiceData {
     type: string;
     syncStatus?: string;
     dependencies: string[];
+    active?: boolean;
   };
   isK8s: boolean;
   isLast: boolean;
@@ -22,6 +23,7 @@ const syncColors: Record<string, string> = {
 
 const ServiceNode = memo(({ data, id }: NodeProps) => {
   const { label, serviceData, isK8s, isLast } = data as unknown as ServiceData;
+  const isActive = serviceData.active !== false; // undefined/true = active
   const prefix = isK8s ? (isLast ? "└ " : "├ ") : "";
   const { hoveredServiceId, highlightedIds, onServiceHover, getDependencyBadges, getReverseDependencies, getDepColor } = useHighlight();
 
@@ -44,7 +46,7 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
         padding: "6px 10px",
         fontFamily: "'Inter', sans-serif",
         fontSize: 13,
-        color: "hsla(0, 0%, 90%, 0.9)",
+        color: isActive ? "hsla(0, 0%, 90%, 0.9)" : "hsla(220, 15%, 50%, 0.7)",
         background: isHighlighted && isHighlightActive
           ? "hsla(220, 25%, 28%, 0.6)"
           : "transparent",
@@ -54,7 +56,7 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
         flexDirection: "column",
         gap: 4,
         transition: "all 0.2s ease",
-        opacity: isDimmed ? 0.2 : 1,
+        opacity: isDimmed ? 0.2 : (isActive ? 1 : 0.5),
         outline: isHighlighted && isHighlightActive
           ? "1px solid hsla(210, 50%, 55%, 0.3)"
           : "none",
@@ -91,9 +93,25 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
           fontFamily: isK8s ? "'JetBrains Mono', monospace" : "inherit",
           fontSize: isK8s ? 12 : 13,
           whiteSpace: "nowrap",
+          textDecoration: isActive ? "none" : "line-through",
         }}>
           {prefix}{label}
         </span>
+        {!isActive && (
+          <span style={{
+            fontSize: 9,
+            fontFamily: "'JetBrains Mono', monospace",
+            padding: "1px 5px",
+            borderRadius: 4,
+            background: "hsla(220, 20%, 25%, 0.6)",
+            color: "hsla(220, 15%, 50%, 0.8)",
+            border: "1px solid hsla(220, 20%, 35%, 0.4)",
+            whiteSpace: "nowrap",
+            letterSpacing: "0.05em",
+          }}>
+            not deployed
+          </span>
+        )}
         {badges.map(badge => (
           <span
             key={badge.targetId}

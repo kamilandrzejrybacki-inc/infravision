@@ -10,6 +10,8 @@ interface SidebarProps {
   onToggleTag: (tag: string) => void;
   activeHosts: string[];
   onToggleHost: (hostId: string) => void;
+  showInactive: boolean;
+  onToggleInactive: () => void;
   generatedAt?: string;
   tags?: string[];
   hosts?: Host[];
@@ -26,6 +28,7 @@ export default function Sidebar({
   activeLayers, onToggleLayer,
   activeTags, onToggleTag,
   activeHosts, onToggleHost,
+  showInactive, onToggleInactive,
   generatedAt,
   tags = [],
   hosts = [],
@@ -95,6 +98,32 @@ export default function Sidebar({
             </button>
           );
         })}
+      </div>
+
+      {/* Show inactive toggle */}
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={onToggleInactive}
+          style={{
+            width: "100%",
+            height: 34,
+            borderRadius: 6,
+            border: showInactive ? "1px solid hsla(220, 20%, 35%, 0.6)" : "1px solid transparent",
+            background: showInactive ? "hsla(220, 15%, 20%, 0.5)" : "hsla(220, 15%, 16%, 0.4)",
+            color: showInactive ? "hsla(220, 15%, 65%, 0.9)" : "hsla(220, 15%, 40%, 0.7)",
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 10 }}>{showInactive ? "◉" : "○"}</span>
+          show not deployed
+        </button>
       </div>
 
       {/* Tags */}
