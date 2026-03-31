@@ -3,14 +3,9 @@ import { resolve } from "node:path";
 import { config as loadDotEnv } from "dotenv";
 import type { PipelineConfig, InfraVisionOutput, DiscoveredService, CaddyRoute, GrafanaDashboard } from "./pipeline/types.js";
 import { discoverPhysicalLayer } from "./pipeline/netbox.js";
-import {
-  discoverCaddyRoutes,
-  discoverArgoApps,
-  discoverK8sHost,
-  discoverAnsibleServices,
-  discoverNasServices,
-} from "./pipeline/ansible.js";
+import { discoverCaddyRoutes, discoverArgoApps, discoverK8sHost } from "./pipeline/ansible.js";
 import { discoverArgoCDApps } from "./pipeline/argocd.js";
+import { discoverRunningContainers } from "./pipeline/prometheus.js";
 import { discoverDashboards, matchDashboardsToServices } from "./pipeline/grafana.js";
 
 loadDotEnv({ path: resolve(import.meta.dirname, "../.env") });
@@ -98,60 +93,18 @@ async function main() {
     }
   }
 
-  // 2b: Docker/native services from Ansible playbooks
-  const ansibleServices = await discoverAnsibleServices(config);
-
-  // 2c: NAS-specific native services
-  const nasServices = await discoverNasServices(config);
-
-  // ── Build Host Map from Caddy hints + inventory ─────────────────
-  // Caddy comments tell us which host runs which service (e.g., "Grafana on lw-main")
-  const caddyHostHints = new Map<string, string>();
-  for (const route of caddyRoutes) {
-    if (route.serviceId && route.hostHint) {
-      caddyHostHints.set(route.serviceId, route.hostHint);
-    }
-  }
-  console.log(`  Caddy host hints: ${[...caddyHostHints.entries()].map(([s,h]) => `${s}→${h}`).join(", ") || "none"}`);
-
-  // Known host definitions: named NetBox devices + K8s host + Caddy-referenced hosts
-  const hostMap = new Map<string, { id: string; label: string; ip: string; tags: string[] }>();
-
-  // Named NetBox devices
-  for (const d of namedDevices) {
-    hostMap.set(d.name, { id: d.name, label: d.name, ip: d.ip || "", tags: d.tags });
+  // 2b: Docker services — query Prometheus for ACTUALLY running containers
+  // This is ground truth: docker_container_info only reports live containers
+  let dockerServices: DiscoveredService[] = [];
+  if (config.grafana.url && config.grafana.token) {
+    dockerServices = await discoverRunningContainers({
+      grafanaUrl: config.grafana.url,
+      grafanaToken: config.grafana.token,
+      datasourceUid: "mimir",
+    });
   }
 
-  // K8s host from Ansible inventory
-  if (k8sHost && !hostMap.has(k8sHost.name)) {
-    hostMap.set(k8sHost.name, { id: k8sHost.name, label: k8sHost.name, ip: k8sHost.ip, tags: [] });
-  }
-
-  // IP-to-hostname resolution: map NetBox IP-named devices to known hostnames
-  // We know from inventories: lw-main=192.168.0.105, lw-s1=192.168.0.108, lw-c1=192.168.0.107, lw-nas=10.0.1.2
-  const ipToHost = new Map<string, string>();
-  for (const d of namedDevices) {
-    if (d.ip) ipToHost.set(d.ip, d.name);
-  }
-  if (k8sHost) ipToHost.set(k8sHost.ip, k8sHost.name);
-
-  // Add hosts referenced in Caddy hints that aren't in NetBox
-  const allHintedHosts = new Set(caddyHostHints.values());
-  for (const hostName of allHintedHosts) {
-    if (!hostMap.has(hostName)) {
-      // Try to find this host's IP from IP-named NetBox devices or Caddy backends
-      let ip = "";
-      for (const d of ipDevices) {
-        if (ipToHost.get(d.name) === hostName) {
-          ip = d.name;
-          break;
-        }
-      }
-      hostMap.set(hostName, { id: hostName, label: hostName, ip, tags: [] });
-    }
-  }
-
-  // Known IP mappings from Ansible inventories (nas-link, secure-homelab-access)
+  // ── Build Host Map ─────────────────────────────────────────────
   const knownHostIPs: Record<string, string> = {
     "lw-main": "192.168.0.105",
     "lw-s1": "192.168.0.108",
@@ -159,128 +112,49 @@ async function main() {
     "lw-nas": "10.0.1.2",
   };
 
-  // Ensure NAS host exists
+  const hostMap = new Map<string, { id: string; label: string; ip: string; tags: string[] }>();
+  for (const d of namedDevices) {
+    hostMap.set(d.name, { id: d.name, label: d.name, ip: d.ip || knownHostIPs[d.name] || "", tags: d.tags });
+  }
+  if (k8sHost && !hostMap.has(k8sHost.name)) {
+    hostMap.set(k8sHost.name, { id: k8sHost.name, label: k8sHost.name, ip: k8sHost.ip, tags: [] });
+  }
   if (!hostMap.has("lw-nas")) {
     hostMap.set("lw-nas", { id: "lw-nas", label: "lw-nas", ip: "10.0.1.2", tags: [] });
   }
-
-  // Fill in missing IPs from known mappings and register in ipToHost
+  // Fill missing IPs
   for (const [name, ip] of Object.entries(knownHostIPs)) {
     const host = hostMap.get(name);
-    if (host && !host.ip) {
-      host.ip = ip;
-    }
-    ipToHost.set(ip, name);
+    if (host && !host.ip) host.ip = ip;
   }
 
-  // ── Evidence-based deployment verification ──────────────────────
-  // An Ansible playbook existing does NOT mean the service is deployed.
-  // A service is considered deployed only if confirmed by at least one source:
-  //   1. ArgoCD application (K8s — confirmed running)
-  //   2. Has a Caddy reverse proxy route (must be running to be proxied)
-  //   3. Dedicated inventory with a real host IP (mimir-loki → 10.0.1.2)
-  //   4. Is a dependency of a confirmed-deployed service (postgres, redis)
-
-  // Caddy route IDs → service IDs mapping
-  const caddyToServiceId: Record<string, string> = {
-    "pdf": "stirling-pdf",
-    "hashi-vault": "vault",
-    "grafana": "grafana-stack",
-  };
-
-  // Build set of Caddy-confirmed service IDs
-  const caddyConfirmed = new Set<string>();
-  for (const route of caddyRoutes) {
-    if (route.serviceId) {
-      caddyConfirmed.add(route.serviceId);
-      const remapped = caddyToServiceId[route.serviceId];
-      if (remapped) caddyConfirmed.add(remapped);
-    }
-  }
-
-  // ArgoCD-confirmed service IDs
-  const argoConfirmed = new Set(k8sServices.map(s => s.id));
-
-  // Services deployed on NAS with real inventory IPs
-  const nasConfirmed = new Set(["mimir-loki", "mergerfs", "snapraid"]);
-
-  // Shared infrastructure that deployed services depend on
-  const sharedInfra = new Set(["shared-postgres", "shared-redis", "shared-mariadb"]);
-
-  // Combine all confirmed service IDs
-  const confirmedDeployed = new Set([
-    ...argoConfirmed,
-    ...nasConfirmed,
-    ...sharedInfra,
-  ]);
-
-  // Add Caddy-confirmed, matching against Ansible service IDs
-  for (const ansibleSvc of ansibleServices) {
-    if (caddyConfirmed.has(ansibleSvc.id)) {
-      confirmedDeployed.add(ansibleSvc.id);
-    }
-  }
-
-  console.log(`\n  Confirmed deployed: ${[...confirmedDeployed].join(", ")}`);
-
-  // ── Merge only confirmed services ──────────────────────────────
+  // ── Merge services ─────────────────────────────────────────────
   const serviceMap = new Map<string, DiscoveredService>();
 
-  // K8s services (all confirmed via ArgoCD)
+  // K8s services (confirmed via ArgoCD)
   for (const svc of k8sServices) {
     serviceMap.set(svc.id, svc);
   }
 
-  // Ansible services — only if confirmed deployed
-  for (const svc of ansibleServices) {
-    if (confirmedDeployed.has(svc.id) && !serviceMap.has(svc.id)) {
+  // Docker services (confirmed via Prometheus — actually running right now)
+  // Host is already set correctly from the `instance` label
+  for (const svc of dockerServices) {
+    if (!serviceMap.has(svc.id)) {
       serviceMap.set(svc.id, svc);
     }
   }
 
-  // NAS native services — only confirmed ones
-  for (const svc of nasServices) {
-    if (nasConfirmed.has(svc.id) && !serviceMap.has(svc.id)) {
-      svc.hostId = "lw-nas";
-      serviceMap.set(svc.id, svc);
-    }
-  }
-
-  // ── Resolve service hostIds ────────────────────────────────────
-  // Caddy host hints from comments (e.g., "Grafana on lw-main")
-  const caddyHostMap = new Map<string, string>();
-  for (const route of caddyRoutes) {
-    if (route.serviceId && route.hostHint) {
-      caddyHostMap.set(route.serviceId, route.hostHint);
-      const remapped = caddyToServiceId[route.serviceId];
-      if (remapped) caddyHostMap.set(remapped, route.hostHint);
-    }
-  }
-
-  for (const [svcId, svc] of serviceMap) {
-    // K8s services stay on K8s host
-    if (svc.type === "k8s" && svc.hostId) continue;
-
-    // Apply Caddy host hint
-    const hint = caddyHostMap.get(svcId);
-    if (hint) {
-      svc.hostId = hint;
-      continue;
-    }
-
-    // Resolve Ansible inventory targets
-    const host = svc.hostId;
-    if (!host || host === "localhost" || host === "all") {
-      svc.hostId = "lw-main";
-    } else if (host === "nas" || host === "nas_hosts") {
-      svc.hostId = "lw-nas";
-    } else if (ipToHost.has(host)) {
-      svc.hostId = ipToHost.get(host)!;
-    }
+  // Remove hosts that have zero services
+  const hostsWithServices = new Set([
+    ...k8sServices.map(s => s.hostId),
+    ...dockerServices.map(s => s.hostId),
+  ]);
+  for (const key of [...hostMap.keys()]) {
+    if (!hostsWithServices.has(key)) hostMap.delete(key);
   }
 
   const allServices = [...serviceMap.values()];
-  console.log(`  Total services: ${allServices.length}`);
+  console.log(`\n  Total services: ${allServices.length} (${k8sServices.length} K8s + ${dockerServices.length} Docker)`);
 
   // ── Step 3: Enrichment (Grafana + Caddy quickLinks) ────────────
   console.log("\n── Step 3: Enrichment ──");

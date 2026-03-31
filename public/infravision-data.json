@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T13:18:04.726Z",
+    "generated_at": "2026-03-31T13:27:09.348Z",
     "sources": {
       "netbox": "http://192.168.0.105:8081",
       "ansible": "/home/kamil-rybacki/Code/ansible",
@@ -167,16 +167,233 @@
       "active": true
     },
     {
+      "id": "shared-redis",
+      "label": "Redis",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "valkey/valkey:8.0-alpine",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "pihole",
+      "label": "Pi-hole",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "pihole/pihole:2024.07.0",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://pihole.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "shared-postgres",
+      "label": "PostgreSQL",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "postgres:16-alpine",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "homepage",
+      "label": "Homepage",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "ghcr:gethomepage/homepage:v0.9.13",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "loki",
+      "label": "Loki",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "grafana/loki:3.3.2",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "netbox",
+      "label": "NetBox",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "netboxcommunity/netbox:v4.2-3.0.2",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://netbox.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "stirling-pdf",
+      "label": "Stirling PDF",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "frooodle/s-pdf:0.36.5",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://pdf.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "filebrowser",
+      "label": "Filebrowser",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "filebrowser/filebrowser:latest",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://files.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "authelia",
+      "label": "Authelia",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "authelia/authelia:4.38",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "obsidian-couchdb",
+      "label": "Obsidian Livesync",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "couchdb:3.4",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "wg-easy",
+      "label": "WireGuard",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "ghcr:wg-easy/wg-easy:14",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "quartz",
+      "label": "Quartz",
+      "description": "",
+      "hostId": "lw-nas",
+      "type": "docker",
+      "ports": [],
+      "image": "quartz-quartz",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [],
+      "active": true
+    },
+    {
+      "id": "vault",
+      "label": "Vault",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "hashicorp/vault:1.17",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://hashi-vault.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "nexterm",
+      "label": "Nexterm",
+      "description": "",
+      "hostId": "lw-main",
+      "type": "docker",
+      "ports": [],
+      "image": "germannewsmaker/nexterm:latest",
+      "dependencies": [],
+      "tags": [],
+      "quickLinks": [
+        {
+          "label": "Open Web UI",
+          "url": "https://nexterm.kamilandrzejrybacki.dpdns.org",
+          "icon": "🌐"
+        }
+      ],
+      "active": true
+    },
+    {
       "id": "n8n",
       "label": "n8n",
-      "description": "Load saved homelab configuration (if available)",
+      "description": "",
       "hostId": "lw-s1",
       "type": "docker",
       "ports": [],
+      "image": "redis:7-alpine",
       "dependencies": [],
-      "tags": [
-        "automation"
-      ],
+      "tags": [],
       "quickLinks": [
         {
           "label": "Open Web UI",
@@ -192,90 +409,54 @@
       "active": true
     },
     {
-      "id": "grafana-stack",
-      "label": "Grafana Stack",
-      "description": "Load saved homelab configuration (if available)",
-      "hostId": "lw-main",
-      "type": "docker",
-      "ports": [],
-      "dependencies": [],
-      "tags": [
-        "monitoring"
-      ],
-      "quickLinks": [
-        {
-          "label": "Open Web UI",
-          "url": "https://grafana.kamilandrzejrybacki.dpdns.org",
-          "icon": "🌐"
-        }
-      ],
-      "active": true
-    },
-    {
-      "id": "mimir-loki",
-      "label": "Mimir / Loki",
-      "description": "Deploy Mimir + Loki on NAS",
+      "id": "shared-mariadb",
+      "label": "MariaDB",
+      "description": "",
       "hostId": "lw-nas",
       "type": "docker",
       "ports": [],
+      "image": "mariadb:10.11",
       "dependencies": [],
-      "tags": [
-        "monitoring"
-      ],
+      "tags": [],
       "quickLinks": [],
       "active": true
     },
     {
-      "id": "netbox",
-      "label": "Netbox",
-      "description": "Load saved homelab configuration (if available)",
-      "hostId": "lw-main",
+      "id": "obsidian-rest-api",
+      "label": "Obsidian REST API",
+      "description": "",
+      "hostId": "lw-nas",
       "type": "docker",
       "ports": [],
+      "image": "obsidian-rest-api:latest",
       "dependencies": [],
-      "tags": [
-        "monitoring"
-      ],
-      "quickLinks": [
-        {
-          "label": "Open Web UI",
-          "url": "https://netbox.kamilandrzejrybacki.dpdns.org",
-          "icon": "🌐"
-        }
-      ],
+      "tags": [],
+      "quickLinks": [],
       "active": true
     },
     {
-      "id": "vault",
-      "label": "Vault",
-      "description": "Load saved homelab configuration (if available)",
-      "hostId": "lw-main",
+      "id": "mimir",
+      "label": "Mimir",
+      "description": "",
+      "hostId": "lw-nas",
       "type": "docker",
       "ports": [],
+      "image": "grafana/mimir:2.14.0",
       "dependencies": [],
-      "tags": [
-        "security"
-      ],
-      "quickLinks": [
-        {
-          "label": "Open Web UI",
-          "url": "https://hashi-vault.kamilandrzejrybacki.dpdns.org",
-          "icon": "🌐"
-        }
-      ],
+      "tags": [],
+      "quickLinks": [],
       "active": true
     },
     {
       "id": "paperless",
       "label": "Paperless",
-      "description": "Load saved homelab configuration (if available)",
+      "description": "",
       "hostId": "lw-nas",
       "type": "docker",
       "ports": [],
+      "image": "ghcr:paperless-ngx/paperless-ngx:2.14.7",
       "dependencies": [],
-      "tags": [
-        "files"
-      ],
+      "tags": [],
       "quickLinks": [
         {
           "label": "Open Web UI",
@@ -286,92 +467,47 @@
       "active": true
     },
     {
-      "id": "stirling-pdf",
-      "label": "Stirling Pdf",
-      "description": "Load saved homelab configuration (if available)",
-      "hostId": "lw-nas",
+      "id": "grafana",
+      "label": "Grafana",
+      "description": "",
+      "hostId": "lw-main",
       "type": "docker",
       "ports": [],
+      "image": "grafana/grafana:11.4.0",
       "dependencies": [],
-      "tags": [
-        "files"
-      ],
+      "tags": [],
       "quickLinks": [
         {
           "label": "Open Web UI",
-          "url": "https://pdf.kamilandrzejrybacki.dpdns.org",
+          "url": "https://grafana.kamilandrzejrybacki.dpdns.org",
           "icon": "🌐"
         }
       ],
       "active": true
     },
     {
-      "id": "shared-mariadb",
-      "label": "MariaDB",
-      "description": "Load saved homelab configuration (if available)",
+      "id": "caddy",
+      "label": "Caddy",
+      "description": "",
       "hostId": "lw-main",
       "type": "docker",
       "ports": [],
+      "image": "caddy-homelab:latest",
       "dependencies": [],
-      "tags": [
-        "infrastructure"
-      ],
+      "tags": [],
       "quickLinks": [],
       "active": true
     },
     {
-      "id": "shared-postgres",
-      "label": "PostgreSQL",
-      "description": "Load saved homelab configuration (if available)",
-      "hostId": "lw-main",
-      "type": "docker",
-      "ports": [],
-      "dependencies": [],
-      "tags": [
-        "infrastructure"
-      ],
-      "quickLinks": [],
-      "active": true
-    },
-    {
-      "id": "shared-redis",
-      "label": "Redis",
-      "description": "Load saved homelab configuration (if available)",
-      "hostId": "lw-main",
-      "type": "docker",
-      "ports": [],
-      "dependencies": [],
-      "tags": [
-        "infrastructure"
-      ],
-      "quickLinks": [],
-      "active": true
-    },
-    {
-      "id": "mergerfs",
-      "label": "mergerfs pool",
+      "id": "syncthing",
+      "label": "Syncthing",
       "description": "",
       "hostId": "lw-nas",
-      "type": "native",
+      "type": "docker",
       "ports": [],
+      "image": "syncthing/syncthing:1.29",
       "dependencies": [],
-      "tags": [
-        "storage"
-      ],
-      "quickLinks": [],
-      "active": true
-    },
-    {
-      "id": "snapraid",
-      "label": "SnapRAID",
-      "description": "",
-      "hostId": "lw-nas",
-      "type": "native",
-      "ports": [],
-      "dependencies": [],
-      "tags": [
-        "storage"
-      ],
+      "tags": [],
       "quickLinks": [],
       "active": true
     }
@@ -379,11 +515,6 @@
   "connections": [],
   "tags": [
     "automation",
-    "dev-tools",
-    "files",
-    "infrastructure",
-    "monitoring",
-    "security",
-    "storage"
+    "dev-tools"
   ]
 }
