@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@layer base {
+  :root {
+    --background: 222 25% 10%;
+    --foreground: 0 0% 92%;
+
+    --card: 222 20% 14%;
+    --card-foreground: 0 0% 92%;
+
+    --popover: 222 20% 14%;
+    --popover-foreground: 0 0% 92%;
+
+    --primary: 220 50% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 18% 18%;
+    --secondary-foreground: 0 0% 92%;
+
+    --muted: 222 18% 18%;
+    --muted-foreground: 220 15% 55%;
+
+    --accent: 210 40% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 25%;
+    --input: 220 15% 18%;
+    --ring: 220 50% 60%;
+
+    --radius: 0.5rem;
+
+    /* InfraVision custom tokens */
+    --canvas-bg: 222 25% 10%;
+    --surface-1: 222 20% 14%;
+    --surface-2: 222 18% 18%;
+    --border-subtle: 220 20% 30%;
+    --border-strong: 220 20% 40%;
+    --text-primary: 0 0% 92%;
+    --text-secondary: 220 15% 65%;
+    --text-muted: 220 15% 50%;
+
+    --accent-red: 0 65% 55%;
+    --accent-amber: 35 80% 55%;
+    --accent-teal: 160 50% 50%;
+    --accent-blue: 220 50% 60%;
+    --accent-purple: 270 45% 60%;
+
+    --sidebar-width: 240px;
+    --detail-panel-width: 320px;
+
+    --sidebar-background: 222 25% 8%;
+    --sidebar-foreground: 220 15% 65%;
+    --sidebar-primary: 220 50% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 35%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 220 50% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+/* React Flow overrides */
+.react-flow__background {
+  background-color: hsl(var(--canvas-bg)) !important;
+}
+
+.react-flow__minimap {
+  background-color: hsl(var(--surface-1)) !important;
+  border: 1px solid hsl(var(--border-subtle)) !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__controls {
+  border: 1px solid hsl(var(--border-subtle)) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: hsl(var(--surface-1)) !important;
+  border-bottom: 1px solid hsl(var(--border-subtle)) !important;
+  fill: hsl(var(--text-secondary)) !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: hsl(var(--surface-2)) !important;
+}

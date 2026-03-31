@@ -1,0 +1,138 @@
+import { memo } from "react";
+import type { NodeProps } from "@xyflow/react";
+import { useHighlight, getDependencyBadges, getReverseDependencies, getDepColor } from "@/lib/highlight";
+
+interface ServiceData {
+  label: string;
+  serviceData: {
+    id: string;
+    type: string;
+    syncStatus?: string;
+    dependencies: string[];
+  };
+  isK8s: boolean;
+  isLast: boolean;
+}
+
+const syncColors: Record<string, string> = {
+  synced: "hsl(145, 60%, 50%)",
+  "out-of-sync": "hsl(40, 80%, 55%)",
+  failed: "hsl(0, 65%, 55%)",
+};
+
+const ServiceNode = memo(({ data, id }: NodeProps) => {
+  const { label, serviceData, isK8s, isLast } = data as unknown as ServiceData;
+  const prefix = isK8s ? (isLast ? "└ " : "├ ") : "";
+  const { hoveredServiceId, highlightedIds, onServiceHover } = useHighlight();
+
+  const badges = getDependencyBadges(id);
+  const reverseDeps = getReverseDependencies(id);
+  const isDepTarget = reverseDeps.length > 0;
+
+  const isHighlightActive = hoveredServiceId !== null;
+  const isHighlighted = highlightedIds.has(id);
+  const isDimmed = isHighlightActive && !isHighlighted;
+
+  // If this service IS a dependency target, show its own color dot
+  const selfColor = isDepTarget ? getDepColor(id) : null;
+
+  return (
+    <div
+      style={{
+        height: "auto",
+        minHeight: 32,
+        padding: "6px 10px",
+        fontFamily: "'Inter', sans-serif",
+        fontSize: 13,
+        color: "hsla(0, 0%, 90%, 0.9)",
+        background: isHighlighted && isHighlightActive
+          ? "hsla(220, 25%, 28%, 0.6)"
+          : "transparent",
+        borderRadius: 4,
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        transition: "all 0.2s ease",
+        opacity: isDimmed ? 0.2 : 1,
+        outline: isHighlighted && isHighlightActive
+          ? "1px solid hsla(210, 50%, 55%, 0.3)"
+          : "none",
+      }}
+      onMouseEnter={() => onServiceHover(id)}
+      onMouseLeave={() => onServiceHover(null)}
+    >
+      {/* Main row: sync dot + name + self-color indicator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {isK8s && serviceData.syncStatus && (
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: syncColors[serviceData.syncStatus] || syncColors.synced,
+              flexShrink: 0,
+            }}
+          />
+        )}
+        {selfColor && (
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: `hsl(${selfColor})`,
+              flexShrink: 0,
+              boxShadow: `0 0 4px hsla(${selfColor} / 0.5)`,
+            }}
+          />
+        )}
+        <span style={{
+          fontFamily: isK8s ? "'JetBrains Mono', monospace" : "inherit",
+          fontSize: isK8s ? 12 : 13,
+          flex: 1,
+        }}>
+          {prefix}{label}
+        </span>
+      </div>
+
+      {/* Dependency badges row */}
+      {badges.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingLeft: isK8s ? 14 : 0 }}>
+          {badges.map(badge => (
+            <span
+              key={badge.targetId}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "1px 7px",
+                borderRadius: 8,
+                fontSize: 10,
+                fontFamily: "'JetBrains Mono', monospace",
+                background: `hsla(${badge.color} / 0.15)`,
+                color: `hsl(${badge.color})`,
+                border: `1px solid hsla(${badge.color} / 0.3)`,
+                lineHeight: "16px",
+              }}
+            >
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: `hsl(${badge.color})`,
+                  flexShrink: 0,
+                }}
+              />
+              {badge.targetLabel}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+ServiceNode.displayName = "ServiceNode";
+export default ServiceNode;

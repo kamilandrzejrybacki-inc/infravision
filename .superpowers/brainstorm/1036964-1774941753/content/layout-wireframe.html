@@ -1,0 +1,174 @@
+<h2>InfraVision — Layout Wireframe</h2>
+<p class="subtitle">Full-viewport app with sidebar controls, main canvas, and slide-in detail panel</p>
+
+<div class="mockup">
+  <div class="mockup-header">InfraVision — Homelab Infrastructure Map</div>
+  <div class="mockup-body" style="display:flex; height:500px; gap:0; padding:0;">
+
+    <!-- Left Sidebar -->
+    <div style="width:200px; min-width:200px; background:#12121f; border-right:1px solid #2a2a4e; padding:16px; display:flex; flex-direction:column; gap:16px; font-size:12px;">
+      <div>
+        <div style="color:#8892b0; font-size:10px; text-transform:uppercase; margin-bottom:6px;">Search</div>
+        <div style="background:#1a1a2e; border:1px solid #2a2a4e; border-radius:4px; padding:6px 8px; color:#5a6a8a;">Search services, hosts...</div>
+      </div>
+
+      <div>
+        <div style="color:#8892b0; font-size:10px; text-transform:uppercase; margin-bottom:6px;">Layers</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="background:#4a6fa5; padding:4px 8px; border-radius:4px; color:white; text-align:center;">Physical</div>
+          <div style="background:#e07a5f; padding:4px 8px; border-radius:4px; color:white; text-align:center;">Services</div>
+          <div style="background:#81b29a; padding:4px 8px; border-radius:4px; color:white; text-align:center;">K8s</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="color:#8892b0; font-size:10px; text-transform:uppercase; margin-bottom:6px;">Tags</div>
+        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">automation</span>
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">monitoring</span>
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">storage</span>
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">ai</span>
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">security</span>
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">files</span>
+          <span style="background:#2a2a4e; padding:2px 8px; border-radius:12px; color:#8892b0; font-size:10px;">dev-tools</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="color:#8892b0; font-size:10px; text-transform:uppercase; margin-bottom:6px;">Hosts</div>
+        <div style="display:flex; flex-direction:column; gap:4px; font-size:11px;">
+          <label style="color:#ccd6f6; display:flex; align-items:center; gap:6px;"><span style="color:#4a6fa5;">■</span> lw-main</label>
+          <label style="color:#ccd6f6; display:flex; align-items:center; gap:6px;"><span style="color:#e07a5f;">■</span> lw-c1</label>
+          <label style="color:#ccd6f6; display:flex; align-items:center; gap:6px;"><span style="color:#81b29a;">■</span> lw-n1</label>
+          <label style="color:#ccd6f6; display:flex; align-items:center; gap:6px;"><span style="color:#f2cc8f;">■</span> lw-n2</label>
+          <label style="color:#ccd6f6; display:flex; align-items:center; gap:6px;"><span style="color:#9a8c98;">■</span> lw-nas</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Canvas -->
+    <div style="flex:1; background:#0a0a1a; position:relative; overflow:hidden; padding:24px;">
+      <!-- Network zone backgrounds -->
+      <div style="position:absolute; top:16px; left:16px; right:220px; bottom:16px;">
+
+        <!-- 192.168.0.x zone -->
+        <div style="position:absolute; top:0; left:0; right:0; height:65%; background:rgba(74,111,165,0.05); border:1px dashed rgba(74,111,165,0.2); border-radius:8px; padding:8px;">
+          <span style="font-size:9px; color:#4a6fa5; text-transform:uppercase;">192.168.0.0/24 — Primary Network</span>
+
+          <div style="display:flex; gap:16px; margin-top:12px; flex-wrap:wrap;">
+            <!-- lw-c1 host container -->
+            <div style="border:2px solid #e07a5f; border-radius:8px; padding:10px; min-width:160px; background:rgba(224,122,95,0.05);">
+              <div style="color:#e07a5f; font-weight:bold; font-size:12px; margin-bottom:6px;">lw-c1 <span style="font-size:9px; color:#5a6a8a;">.107</span></div>
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#81b29a; border-left:2px solid #81b29a;">K3s cluster</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6; margin-left:12px;">├ ArgoCD</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6; margin-left:12px;">├ n8n-workers</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6; margin-left:12px;">├ prefect-etl</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6; margin-left:12px;">└ github-runners</div>
+              </div>
+            </div>
+
+            <!-- lw-n1 host container -->
+            <div style="border:2px solid #81b29a; border-radius:8px; padding:10px; min-width:160px; background:rgba(129,178,154,0.05);">
+              <div style="color:#81b29a; font-weight:bold; font-size:12px; margin-bottom:6px;">lw-n1 <span style="font-size:9px; color:#5a6a8a;">.105</span></div>
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Caddy</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">n8n</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">PostgreSQL</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Redis</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Grafana stack</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Vault</div>
+              </div>
+            </div>
+
+            <!-- lw-n2 host container -->
+            <div style="border:2px solid #f2cc8f; border-radius:8px; padding:10px; min-width:120px; background:rgba(242,204,143,0.05);">
+              <div style="color:#f2cc8f; font-weight:bold; font-size:12px; margin-bottom:6px;">lw-n2 <span style="font-size:9px; color:#5a6a8a;">.108</span></div>
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Paperless</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Seafile</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Uptime Kuma</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10.0.1.x zone -->
+        <div style="position:absolute; bottom:0; left:0; width:50%; height:30%; background:rgba(154,140,152,0.05); border:1px dashed rgba(154,140,152,0.2); border-radius:8px; padding:8px;">
+          <span style="font-size:9px; color:#9a8c98; text-transform:uppercase;">10.0.1.0/24 — NAS Subnet</span>
+          <div style="margin-top:8px;">
+            <div style="border:2px solid #9a8c98; border-radius:8px; padding:10px; min-width:140px; display:inline-block; background:rgba(154,140,152,0.05);">
+              <div style="color:#9a8c98; font-weight:bold; font-size:12px; margin-bottom:6px;">lw-nas <span style="font-size:9px; color:#5a6a8a;">10.0.1.2</span></div>
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">mergerfs pool</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">SnapRAID</div>
+                <div style="background:#1a1a2e; padding:3px 6px; border-radius:3px; font-size:10px; color:#ccd6f6;">Mimir / Loki</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connection lines (simulated) -->
+        <div style="position:absolute; top:52%; left:38%; font-size:9px; color:#f2cc8f; transform:rotate(-30deg);">── USB-eth ──▶</div>
+        <div style="position:absolute; top:28%; left:35%; font-size:9px; color:#5a6a8a;">── Redis queue ──▶</div>
+      </div>
+    </div>
+
+    <!-- Right Detail Panel -->
+    <div style="width:210px; min-width:210px; background:#12121f; border-left:1px solid #2a2a4e; padding:16px; font-size:12px;">
+      <div style="color:#8892b0; font-size:10px; text-transform:uppercase; margin-bottom:12px;">Service Detail</div>
+
+      <div style="color:#ccd6f6; font-size:16px; font-weight:bold; margin-bottom:4px;">n8n</div>
+      <div style="color:#5a6a8a; font-size:11px; margin-bottom:12px;">Workflow automation platform</div>
+
+      <div style="border-top:1px solid #2a2a4e; padding-top:10px; margin-bottom:10px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:4px;">HOST</div>
+        <div style="color:#81b29a;">lw-n1</div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:4px;">TYPE</div>
+        <div style="color:#ccd6f6;">Docker</div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:4px;">PORTS</div>
+        <div style="color:#ccd6f6;">5678</div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:4px;">IMAGE</div>
+        <div style="color:#ccd6f6; font-size:10px; word-break:break-all;">docker.n8n.io/n8nio/n8n</div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:4px;">DEPENDS ON</div>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <span style="color:#4a6fa5; font-size:11px; cursor:pointer;">→ PostgreSQL</span>
+          <span style="color:#4a6fa5; font-size:11px; cursor:pointer;">→ Redis</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:4px;">TAGS</div>
+        <div style="display:flex; flex-wrap:wrap; gap:3px;">
+          <span style="background:#2a2a4e; padding:1px 6px; border-radius:10px; font-size:9px; color:#8892b0;">automation</span>
+          <span style="background:#2a2a4e; padding:1px 6px; border-radius:10px; font-size:9px; color:#8892b0;">workflow</span>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:4px; margin-top:8px; border-top:1px solid #2a2a4e; padding-top:10px;">
+        <div style="color:#8892b0; font-size:10px; margin-bottom:2px;">QUICK LINKS</div>
+        <a style="color:#4a6fa5; font-size:11px; text-decoration:none;">🌐 Open Web UI</a>
+        <a style="color:#e07a5f; font-size:11px; text-decoration:none;">📊 Grafana Dashboard</a>
+        <a style="color:#81b29a; font-size:11px; text-decoration:none;">📦 NetBox Entry</a>
+        <a style="color:#f2cc8f; font-size:11px; text-decoration:none;">🔧 Ansible Playbook</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="margin-top:16px; color:#8892b0; font-size:13px;">
+  <strong>Key elements:</strong> Network zones as background regions • Host containers with colored borders • Services nested inside hosts • Connection arrows between services • K8s workloads shown as a sub-tree • Detail panel slides in on click
+</p>

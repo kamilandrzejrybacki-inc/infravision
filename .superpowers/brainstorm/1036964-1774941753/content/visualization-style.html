@@ -1,0 +1,90 @@
+<h2>Which visualization style for your infrastructure map?</h2>
+<p class="subtitle">Consider how you naturally think about your homelab topology</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Node Graph / Network Diagram</h3>
+      <p>Interactive force-directed or hierarchical graph. Nodes = hosts/services, edges = connections/dependencies. Click nodes to expand details. Think: D3.js force layout or Cytoscape.js.</p>
+      <div style="margin-top:12px; padding:16px; background:#1a1a2e; border-radius:8px; font-family:monospace; font-size:13px; color:#8892b0;">
+        <div style="display:flex; gap:40px; justify-content:center; align-items:center; flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <div style="width:60px;height:60px;border-radius:50%;background:#4a6fa5;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">lw-c1</div>
+            <span style="font-size:11px;color:#5a6a8a;">192.168.0.107</span>
+          </div>
+          <div style="border-top:2px dashed #4a6fa5;width:60px;"></div>
+          <div style="text-align:center;">
+            <div style="width:60px;height:60px;border-radius:50%;background:#e07a5f;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">lw-n1</div>
+            <span style="font-size:11px;color:#5a6a8a;">192.168.0.105</span>
+          </div>
+          <div style="border-top:2px dashed #e07a5f;width:60px;"></div>
+          <div style="text-align:center;">
+            <div style="width:60px;height:60px;border-radius:50%;background:#81b29a;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">lw-nas</div>
+            <span style="font-size:11px;color:#5a6a8a;">10.0.1.2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Layered / Rack-style Diagram</h3>
+      <p>Physical hosts as containers/racks, services stacked inside them. Click a host to see its services. Visually maps to how you think about "what runs on what machine."</p>
+      <div style="margin-top:12px; padding:16px; background:#1a1a2e; border-radius:8px; font-family:monospace; font-size:13px; color:#8892b0;">
+        <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+          <div style="border:2px solid #4a6fa5; border-radius:8px; padding:12px; min-width:140px;">
+            <div style="color:#4a6fa5; font-weight:bold; margin-bottom:8px;">lw-c1 (K3s)</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">n8n-workers</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">ArgoCD</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">prefect-etl</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">github-runners</div>
+          </div>
+          <div style="border:2px solid #e07a5f; border-radius:8px; padding:12px; min-width:140px;">
+            <div style="color:#e07a5f; font-weight:bold; margin-bottom:8px;">lw-n1</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">Caddy</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">Grafana stack</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">Vault</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">n8n</div>
+          </div>
+          <div style="border:2px solid #81b29a; border-radius:8px; padding:12px; min-width:140px;">
+            <div style="color:#81b29a; font-weight:bold; margin-bottom:8px;">lw-nas</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">mergerfs pool</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">SnapRAID</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">Mimir/Loki</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid: Layered Hosts + Connection Graph</h3>
+      <p>Hosts shown as containers with their services, PLUS lines/arrows showing network connections and dependencies between services across hosts. Best of both worlds but more complex.</p>
+      <div style="margin-top:12px; padding:16px; background:#1a1a2e; border-radius:8px; font-family:monospace; font-size:13px; color:#8892b0;">
+        <div style="display:flex; gap:24px; justify-content:center; align-items:start; flex-wrap:wrap; position:relative;">
+          <div style="border:2px solid #4a6fa5; border-radius:8px; padding:12px; min-width:130px;">
+            <div style="color:#4a6fa5; font-weight:bold; margin-bottom:8px;">lw-c1</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">K3s cluster</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">n8n workers</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:20px;">
+            <div style="font-size:10px;color:#5a6a8a;">Redis queue</div>
+            <div style="border-top:2px solid #f2cc8f;width:40px;"></div>
+            <div style="font-size:10px;color:#5a6a8a;margin-top:8px;">Postgres</div>
+            <div style="border-top:2px solid #81b29a;width:40px;"></div>
+          </div>
+          <div style="border:2px solid #e07a5f; border-radius:8px; padding:12px; min-width:130px;">
+            <div style="color:#e07a5f; font-weight:bold; margin-bottom:8px;">lw-n1</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">n8n main</div>
+            <div style="background:#2a2a4e;padding:4px 8px;border-radius:4px;margin:4px 0;font-size:11px;">PostgreSQL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
