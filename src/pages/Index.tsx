@@ -20,7 +20,8 @@ import Sidebar from "@/components/Sidebar";
 import DetailPanel from "@/components/DetailPanel";
 import { HighlightProvider, useHighlight } from "@/lib/highlight";
 import { loadInfrastructureData } from "@/data/infrastructure";
-import type { Host, Connection, NetworkZone } from "@/data/types";
+import { InfraVisionRepository } from "@/data/infrastructure-repository";
+import type { Host, Connection, NetworkZone, Service } from "@/data/types";
 import { computeLayout } from "@/lib/layout";
 import { buildEdges } from "@/lib/edges";
 
@@ -37,6 +38,8 @@ interface ProcessedData {
   connections: Connection[];
   tags: string[];
   metadata: { generated_at: string };
+  getServiceById: (id: string) => Service | undefined;
+  getHostById: (id: string) => Host | undefined;
 }
 
 interface InfraCanvasProps {
@@ -78,7 +81,7 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
   }, []);
 
   const layoutNodes = useMemo(() => {
-    const { nodes } = computeLayout(processedData.zones, activeLayers, activeTags, processedData.hosts);
+    const { nodes } = computeLayout(processedData.zones, activeLayers, activeTags, processedData.hosts, processedData.connections);
     const allServices = processedData.hosts.flatMap(h => h.services);
     const effectiveActiveHosts = activeHosts.length > 0
       ? activeHosts
@@ -224,6 +227,8 @@ function InfraCanvas({ processedData }: InfraCanvasProps) {
         selectedId={selectedId}
         selectedType={selectedType}
         onClose={() => { setSelectedId(null); setSelectedType(null); }}
+        getServiceById={processedData.getServiceById}
+        getHostById={processedData.getHostById}
       />
     </div>
   );
@@ -238,16 +243,15 @@ export default function Index() {
 
   const processedData = useMemo(() => {
     if (!data) return null;
-    const hosts: Host[] = data.hosts.map(h => ({
-      ...h,
-      services: data.services.filter(s => s.hostId === h.id),
-    }));
+    const repo = new InfraVisionRepository(data);
     return {
-      hosts,
+      hosts: repo.getHostsWithServices(),
       zones: data.zones,
       connections: data.connections,
       tags: data.tags,
       metadata: data.metadata,
+      getServiceById: (id: string) => repo.getServiceById(id),
+      getHostById: (id: string) => repo.getHostById(id),
     };
   }, [data]);
 
@@ -262,10 +266,11 @@ export default function Index() {
   }
 
   if (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load infrastructure data';
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
-        <div style={{ color: 'hsl(0, 65%, 55%)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
-          Failed to load infrastructure data
+        <div style={{ color: 'hsl(0, 65%, 55%)', fontSize: '14px', fontFamily: 'Inter, sans-serif', textAlign: 'center', maxWidth: 480, padding: '0 24px' }}>
+          {message}
         </div>
       </div>
     );

@@ -1,3 +1,4 @@
+import { InfraVisionDataSchema } from './types';
 import type { Service, Host, NetworkZone, Connection, InfraVisionData } from './types';
 
 // Deprecated: Use Connection type from types.ts instead
@@ -247,7 +248,21 @@ export function getHostById(id: string): Host | undefined {
 export async function loadInfrastructureData(): Promise<InfraVisionData> {
   const response = await fetch('/infravision-data.json');
   if (!response.ok) {
-    throw new Error(`Failed to load infrastructure data: ${response.status}`);
+    throw new Error(`Failed to load infrastructure data: HTTP ${response.status} ${response.statusText}`);
   }
-  return response.json();
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch {
+    throw new Error('Infrastructure data file is not valid JSON');
+  }
+
+  const result = InfraVisionDataSchema.safeParse(raw);
+  if (!result.success) {
+    const firstIssue = result.error.issues[0];
+    throw new Error(`Infrastructure data schema invalid: ${firstIssue.path.join('.')} — ${firstIssue.message}`);
+  }
+
+  return result.data;
 }

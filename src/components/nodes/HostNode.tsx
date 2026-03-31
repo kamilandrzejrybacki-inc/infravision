@@ -1,7 +1,7 @@
 import { memo } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { useHighlight } from "@/lib/highlight";
-import { physicalConnections } from "@/data/infrastructure";
+import type { Connection } from "@/data/types";
 
 interface HostData {
   label: string;
@@ -10,15 +10,15 @@ interface HostData {
   width: number;
   height: number;
   isK8sHost: boolean;
+  physConn: Connection | null;
 }
 
 const HostNode = memo(({ data, id }: NodeProps) => {
-  const { label, ip, color, width, height } = data as unknown as HostData;
+  const { label, ip, color, width, height, physConn } = data as unknown as HostData;
   const borderColor = `hsl(${color})`;
   const { hoveredServiceId, highlightedIds } = useHighlight();
 
-  // Check if this host has a physical connection
-  const physConn = physicalConnections.find(c => c.source === id || c.target === id);
+  // Resolve physical connection partner label from node data
   const physPartner = physConn ? (physConn.source === id ? physConn.target : physConn.source) : null;
 
   // Dim host if highlight is active and none of its children are highlighted

@@ -1,4 +1,4 @@
-import type { Host, NetworkZone } from "@/data/types";
+import type { Connection, Host, NetworkZone } from "@/data/types";
 import type { Node } from "@xyflow/react";
 
 const NETWORK_ZONE_PADDING = 60;
@@ -103,6 +103,7 @@ export function computeLayout(
   _activeLayers: string[],
   _activeTags: string[],
   hosts: Host[],
+  connections: Connection[] = [],
 ): LayoutResult {
   const nodes: Node[] = [];
   const zonePositions: Record<string, { x: number; y: number; width: number; height: number }> = {};
@@ -153,6 +154,9 @@ export function computeLayout(
       const hostWidth = hostWidths[i];
       const hostHeight = hostHeights[i];
       const isK8sHost = host.id === "lw-c1";
+      const physConn = connections.find(
+        c => c.type === "physical" && (c.source === host.id || c.target === host.id)
+      ) ?? null;
 
       nodes.push({
         id: host.id,
@@ -162,7 +166,7 @@ export function computeLayout(
         extent: "parent" as const,
         data: {
           label: host.label, ip: host.ip, color: host.color,
-          width: hostWidth, height: hostHeight, isK8sHost,
+          width: hostWidth, height: hostHeight, isK8sHost, physConn,
         },
         draggable: false,
         style: { width: hostWidth, height: hostHeight },

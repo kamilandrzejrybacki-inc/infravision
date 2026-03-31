@@ -1,14 +1,24 @@
 import { X } from "lucide-react";
 import type { Service, Host } from "@/data/types";
-import { getHostById, getServiceById } from "@/data/infrastructure";
+
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
 
 interface DetailPanelProps {
   selectedId: string | null;
   selectedType: "service" | "host" | null;
   onClose: () => void;
+  getServiceById: (id: string) => Service | undefined;
+  getHostById: (id: string) => Host | undefined;
 }
 
-export default function DetailPanel({ selectedId, selectedType, onClose }: DetailPanelProps) {
+export default function DetailPanel({ selectedId, selectedType, onClose, getServiceById, getHostById }: DetailPanelProps) {
   if (!selectedId || !selectedType) return null;
 
   const isService = selectedType === "service";
@@ -54,7 +64,7 @@ export default function DetailPanel({ selectedId, selectedType, onClose }: Detai
       </div>
 
       {isService && service ? (
-        <ServiceDetail service={service} host={host} />
+        <ServiceDetail service={service} host={host} getServiceById={getServiceById} />
       ) : host ? (
         <HostDetail host={host} />
       ) : null}
@@ -62,7 +72,7 @@ export default function DetailPanel({ selectedId, selectedType, onClose }: Detai
   );
 }
 
-function ServiceDetail({ service, host }: { service: Service; host: Host | undefined }) {
+function ServiceDetail({ service, host, getServiceById }: { service: Service; host: Host | undefined; getServiceById: (id: string) => Service | undefined }) {
   return (
     <>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: "hsla(0, 0%, 92%, 0.95)", margin: "8px 0 4px" }}>
@@ -112,19 +122,21 @@ function ServiceDetail({ service, host }: { service: Service; host: Host | undef
       {service.quickLinks.length > 0 && (
         <Section title="QUICK LINKS">
           {service.quickLinks.map(link => (
-            <a
-              key={link.label}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "flex", alignItems: "center", gap: 8,
-                fontSize: 13, color: "hsla(210, 60%, 65%, 0.95)",
-                textDecoration: "none", marginBottom: 8,
-              }}
-            >
-              <span>{link.icon}</span> {link.label}
-            </a>
+            isSafeUrl(link.url) ? (
+              <a
+                key={link.label}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  fontSize: 13, color: "hsla(210, 60%, 65%, 0.95)",
+                  textDecoration: "none", marginBottom: 8,
+                }}
+              >
+                <span>{link.icon}</span> {link.label}
+              </a>
+            ) : null
           ))}
         </Section>
       )}

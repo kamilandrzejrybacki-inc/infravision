@@ -56,6 +56,7 @@ export default function Sidebar({
         <input
           type="text"
           placeholder="Search services, hosts..."
+          maxLength={200}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           style={{
