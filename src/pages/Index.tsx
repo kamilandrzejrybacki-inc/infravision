@@ -17,7 +17,7 @@ import ServiceNode from "@/components/nodes/ServiceNode";
 import K8sClusterNode from "@/components/nodes/K8sClusterNode";
 import Sidebar from "@/components/Sidebar";
 import DetailPanel from "@/components/DetailPanel";
-import { HighlightProvider } from "@/lib/highlight";
+import { HighlightProvider, useHighlight, getDirectConnections } from "@/lib/highlight";
 import { zones, hosts, getAllServices, getConnections } from "@/data/infrastructure";
 import { computeLayout } from "@/lib/layout";
 import { buildEdges } from "@/lib/edges";
@@ -30,6 +30,7 @@ const nodeTypes: NodeTypes = {
 };
 
 function InfraCanvas() {
+  const { hoveredServiceId } = useHighlight();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeLayers, setActiveLayers] = useState(["physical", "services", "k8s"]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -93,6 +94,25 @@ function InfraCanvas() {
 
   const edges = useMemo(() => buildEdges(getConnections()), []);
 
+  const dimmedEdges = useMemo(() => {
+    if (!hoveredServiceId) return edges;
+    const connectedServices = getDirectConnections(hoveredServiceId);
+    connectedServices.add(hoveredServiceId);
+
+    return edges.map(edge => {
+      const isHighlighted = connectedServices.has(edge.source) || connectedServices.has(edge.target);
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          opacity: isHighlighted ? 1 : 0.15,
+          strokeWidth: isHighlighted ? 2 : (edge.style?.strokeWidth ?? 1.5),
+          transition: 'opacity 0.2s ease, stroke-width 0.2s ease',
+        },
+      };
+    });
+  }, [edges, hoveredServiceId]);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
 
   useMemo(() => {
@@ -147,7 +167,7 @@ function InfraCanvas() {
 
         <ReactFlow
           nodes={nodes}
-          edges={edges}
+          edges={dimmedEdges}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
