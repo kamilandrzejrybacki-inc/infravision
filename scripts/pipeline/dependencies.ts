@@ -11,7 +11,11 @@ interface DepLink {
   target: string;
 }
 
-/** Discover service dependencies from Ansible docker-compose templates and task files */
+/**
+ * Discover service dependencies dynamically from Ansible templates.
+ * No hardcoded service names — builds alias map from running service IDs
+ * and scans for depends_on, _HOST, _URL env var references.
+ */
 export async function discoverDependencies(
   config: DepConfig,
   runningServiceIds: Set<string>,
@@ -21,52 +25,59 @@ export async function discoverDependencies(
   const deps: DepLink[] = [];
   const seen = new Set<string>();
 
-  // Map container names to our service IDs
-  // Some Ansible templates reference containers by their docker-compose service name
-  // which may differ from our service ID
-  const containerAliases: Record<string, string> = {
-    "postgres": "shared-postgres",
-    "db": "shared-postgres",
-    "redis": "shared-redis",
-    "redis-cache": "shared-redis",
-    "mariadb": "shared-mariadb",
-    "memcached": "shared-mariadb", // close enough — seafile uses memcached but we track mariadb
-    "grafana": "grafana",
-    "loki": "loki",
-    "mimir": "mimir",
-  };
-
-  // Also include direct service ID matches
+  // Build alias map dynamically from running service IDs
+  // "shared-postgres" → aliases: ["postgres", "db", "postgresql"]
+  // "shared-redis" → aliases: ["redis", "redis-cache"]
+  // Any running service ID also matches as its own alias
+  const aliasToServiceId = new Map<string, string>();
   for (const id of runningServiceIds) {
-    containerAliases[id] = id;
+    aliasToServiceId.set(id, id);
+
+    // Generate common aliases by stripping prefixes/suffixes
+    const stripped = id.replace(/^shared-/, "");
+    if (stripped !== id) aliasToServiceId.set(stripped, id);
+
+    // Common DB alias: "db" if this looks like a database service
+    if (/postgres/i.test(id)) {
+      aliasToServiceId.set("db", id);
+      aliasToServiceId.set("postgres", id);
+      aliasToServiceId.set("postgresql", id);
+    }
+    if (/redis/i.test(id)) {
+      aliasToServiceId.set("redis", id);
+      aliasToServiceId.set("redis-cache", id);
+    }
+    if (/mariadb|mysql/i.test(id)) {
+      aliasToServiceId.set("mariadb", id);
+      aliasToServiceId.set("mysql", id);
+    }
   }
 
-  const categories = ["automation", "monitoring", "security", "files", "infrastructure"];
+  // Scan all Ansible setup directories
+  const ansibleRoot = config.ansiblePath;
+  const categories = await listSubdirs(ansibleRoot);
 
   for (const category of categories) {
-    const categoryPath = join(config.ansiblePath, category);
-    if (!existsSync(categoryPath)) continue;
+    const categoryPath = join(ansibleRoot, category);
+    const entries = await listSubdirs(categoryPath);
 
-    const entries = await readdir(categoryPath, { withFileTypes: true });
+    for (const dirName of entries) {
+      if (!dirName.endsWith("-setup")) continue;
 
-    for (const entry of entries) {
-      if (!entry.isDirectory() || !entry.name.endsWith("-setup")) continue;
+      const setupDir = join(categoryPath, dirName);
+      const serviceId = dirName.replace(/-setup$/, "");
 
-      const setupDir = join(categoryPath, entry.name);
-      const serviceId = entry.name.replace(/-setup$/, "");
-
-      // Only care about dependencies FOR services that are actually running
+      // Only discover deps for services that are actually running
       if (!runningServiceIds.has(serviceId)) continue;
 
-      // Scan all .j2 and .yml files in this setup directory for references
       const referencedServices = await scanForServiceReferences(
         setupDir,
-        containerAliases,
+        aliasToServiceId,
         runningServiceIds,
       );
 
       for (const targetId of referencedServices) {
-        if (targetId === serviceId) continue; // no self-references
+        if (targetId === serviceId) continue;
         const key = `${serviceId}→${targetId}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -74,15 +85,6 @@ export async function discoverDependencies(
       }
     }
   }
-
-  // n8n specifically depends on postgres and redis (deployed on lw-s1, connects to lw-nas)
-  // The n8n-setup uses docker_container, not docker-compose, so it won't have depends_on
-  addIfBothRunning(deps, seen, "n8n", "shared-postgres", runningServiceIds);
-  addIfBothRunning(deps, seen, "n8n", "shared-redis", runningServiceIds);
-
-  // Grafana depends on Mimir (Prometheus datasource) and Loki
-  addIfBothRunning(deps, seen, "grafana", "mimir", runningServiceIds);
-  addIfBothRunning(deps, seen, "grafana", "loki", runningServiceIds);
 
   console.log(`[dependencies] Found ${deps.length} dependency links`);
   for (const d of deps) {
@@ -92,23 +94,19 @@ export async function discoverDependencies(
   return deps;
 }
 
-function addIfBothRunning(
-  deps: DepLink[],
-  seen: Set<string>,
-  source: string,
-  target: string,
-  running: Set<string>,
-) {
-  const key = `${source}→${target}`;
-  if (!seen.has(key) && running.has(source) && running.has(target)) {
-    seen.add(key);
-    deps.push({ source, target });
+async function listSubdirs(dir: string): Promise<string[]> {
+  if (!existsSync(dir)) return [];
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    return entries.filter(e => e.isDirectory()).map(e => e.name);
+  } catch {
+    return [];
   }
 }
 
 async function scanForServiceReferences(
   dir: string,
-  aliases: Record<string, string>,
+  aliases: Map<string, string>,
   runningIds: Set<string>,
 ): Promise<Set<string>> {
   const found = new Set<string>();
@@ -131,26 +129,27 @@ async function scanForServiceReferences(
       const content = await readFile(fullPath, "utf-8");
 
       // Check depends_on sections
-      const dependsMatches = content.matchAll(/depends_on:[\s\S]*?(?=\n\s{2}\w|\n\w|$)/g);
-      for (const m of dependsMatches) {
-        const block = m[0];
-        for (const [alias, svcId] of Object.entries(aliases)) {
-          if (block.includes(alias) && runningIds.has(svcId)) {
-            found.add(svcId);
+      const dependsBlock = content.match(/depends_on:[\s\S]*?(?=\n\s{0,2}\w|\n---|\z)/g);
+      if (dependsBlock) {
+        for (const block of dependsBlock) {
+          for (const [alias, svcId] of aliases) {
+            if (block.includes(alias) && runningIds.has(svcId)) {
+              found.add(svcId);
+            }
           }
         }
       }
 
-      // Check env var references to known services
-      // Patterns: POSTGRES_HOST, REDIS_URL, DB_HOST, etc. containing service names
-      for (const [alias, svcId] of Object.entries(aliases)) {
+      // Check env var references: *_HOST, *_URL, *_SERVER containing service names
+      for (const [alias, svcId] of aliases) {
         if (!runningIds.has(svcId)) continue;
-        // Look for the alias in host/url references
+        if (alias.length < 3) continue; // skip very short aliases to avoid false positives
+
         const patterns = [
-          new RegExp(`_HOST[:\s]*["']?${alias}`, "i"),
-          new RegExp(`_URL[:\s]*["']?\\w+://${alias}`, "i"),
-          new RegExp(`_SERVER[:\s]*["']?${alias}`, "i"),
-          new RegExp(`depends_on:[\\s\\S]*?\\b${alias}\\b`),
+          new RegExp(`_HOST[:\\s]*["']?${escapeRegex(alias)}`, "i"),
+          new RegExp(`_URL[:\\s]*["']?\\w+://${escapeRegex(alias)}`, "i"),
+          new RegExp(`_SERVER[:\\s]*["']?${escapeRegex(alias)}`, "i"),
+          new RegExp(`depends_on:[\\s\\S]*?\\b${escapeRegex(alias)}\\b`),
         ];
         for (const pat of patterns) {
           if (pat.test(content)) {
@@ -164,4 +163,8 @@ async function scanForServiceReferences(
 
   await walk(dir);
   return found;
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

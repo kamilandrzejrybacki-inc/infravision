@@ -46,7 +46,7 @@ export async function discoverCaddyRoutes(config: AnsibleConfig): Promise<CaddyR
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Track comments — host hints are in comments like "# Grafana (monitoring stack on lw-main)"
+    // Track comments — host hints appear as "# Service (description on HOSTNAME)"
     if (line.startsWith("# ") && !line.startsWith("# --")) {
       lastComment = line.slice(2).trim();
       continue;
@@ -62,7 +62,7 @@ export async function discoverCaddyRoutes(config: AnsibleConfig): Promise<CaddyR
     // Already seen?
     if (routes.some(r => r.subdomain === subdomain)) continue;
 
-    // Extract host hint from preceding comment (e.g., "on lw-main", "on lw-s1", "K8s on lw-c1")
+    // Extract host hint from preceding comment (e.g., "on hostname")
     const hostHintMatch = lastComment.match(/on\s+(lw-\S+|[\w-]+\))/i);
     const hostHint = hostHintMatch ? hostHintMatch[1].replace(/[()]/g, "") : "";
 

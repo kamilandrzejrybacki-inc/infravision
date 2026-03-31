@@ -40,16 +40,9 @@ const config: PipelineConfig = {
   ansiblePath: requireEnv("ANSIBLE_PATH"),
 };
 
-// ── Host accent colors assigned in discovery order ─────────────────
 const HOST_COLORS = [
-  "2 62% 56%",     // red
-  "35 75% 54%",    // amber
-  "162 46% 48%",   // teal
-  "215 52% 58%",   // blue
-  "268 42% 58%",   // purple
-  "330 50% 55%",   // pink
-  "90 40% 48%",    // olive
-  "195 50% 50%",   // cyan
+  "2 62% 56%", "35 75% 54%", "162 46% 48%", "215 52% 58%",
+  "268 42% 58%", "330 50% 55%", "90 40% 48%", "195 50% 50%",
 ];
 
 async function main() {
@@ -62,24 +55,18 @@ async function main() {
   const caddyRoutes = await discoverCaddyRoutes(config);
   const k8sHost = await discoverK8sHost(config);
 
-  // All NetBox devices (include IP-named ones as they represent real machines)
-  const allDevices = physical.devices.filter(d =>
-    d.status === "active" && d.name !== "localhost"
-  );
-
-  // Named devices are the "known" hosts; IP-only ones need resolution
+  const allDevices = physical.devices.filter(d => d.status === "active" && d.name !== "localhost");
   const namedDevices = allDevices.filter(d => !/^\d+\.\d+\.\d+\.\d+$/.test(d.name));
   const ipDevices = allDevices.filter(d => /^\d+\.\d+\.\d+\.\d+$/.test(d.name));
 
   console.log(`  Named devices: ${namedDevices.map(d => d.name).join(", ") || "none"}`);
   console.log(`  IP devices: ${ipDevices.map(d => d.name).join(", ") || "none"}`);
   if (k8sHost) console.log(`  K8s host: ${k8sHost.name} @ ${k8sHost.ip}`);
-  console.log(`  Caddy routes: ${caddyRoutes.map(r => r.subdomain).join(", ") || "none"}`);
 
   // ── Step 2: Service Discovery ──────────────────────────────────
   console.log("\n── Step 2: Service Discovery ──");
 
-  // 2a: K8s services — prefer live ArgoCD API, fallback to Ansible
+  // 2a: K8s services from live ArgoCD API or Ansible fallback
   let k8sServices: DiscoveredService[] = [];
   if (config.argocd.url) {
     let argoToken = config.argocd.token;
@@ -94,16 +81,13 @@ async function main() {
     console.log("[pipeline] Falling back to Ansible for K8s app discovery");
     k8sServices = await discoverArgoApps(config);
   }
-
-  // Assign K8s host
   if (k8sHost) {
     for (const svc of k8sServices) {
       if (!svc.hostId) svc.hostId = k8sHost.name;
     }
   }
 
-  // 2b: Docker services — query Prometheus for ACTUALLY running containers
-  // This is ground truth: docker_container_info only reports live containers
+  // 2b: Docker services from Prometheus (ground truth)
   let dockerServices: DiscoveredService[] = [];
   if (config.grafana.url && config.grafana.token) {
     dockerServices = await discoverRunningContainers({
@@ -113,47 +97,46 @@ async function main() {
     });
   }
 
-  // ── Build Host Map ─────────────────────────────────────────────
-  const knownHostIPs: Record<string, string> = {
-    "lw-main": "192.168.0.105",
-    "lw-s1": "192.168.0.108",
-    "lw-c1": "192.168.0.107",
-    "lw-nas": "10.0.1.2",
-  };
-
+  // ── Build Host Map (derived from discovered data, not hardcoded) ─
   const hostMap = new Map<string, { id: string; label: string; ip: string; tags: string[] }>();
+
+  // Named NetBox devices
   for (const d of namedDevices) {
-    hostMap.set(d.name, { id: d.name, label: d.name, ip: d.ip || knownHostIPs[d.name] || "", tags: d.tags });
+    hostMap.set(d.name, { id: d.name, label: d.name, ip: d.ip || "", tags: d.tags });
   }
+
+  // K8s host from Ansible inventory
   if (k8sHost && !hostMap.has(k8sHost.name)) {
     hostMap.set(k8sHost.name, { id: k8sHost.name, label: k8sHost.name, ip: k8sHost.ip, tags: [] });
   }
-  if (!hostMap.has("lw-nas")) {
-    hostMap.set("lw-nas", { id: "lw-nas", label: "lw-nas", ip: "10.0.1.2", tags: [] });
-  }
-  // Fill missing IPs
-  for (const [name, ip] of Object.entries(knownHostIPs)) {
-    const host = hostMap.get(name);
-    if (host && !host.ip) host.ip = ip;
-  }
 
-  // ── Merge services ─────────────────────────────────────────────
-  const serviceMap = new Map<string, DiscoveredService>();
-
-  // K8s services (confirmed via ArgoCD)
-  for (const svc of k8sServices) {
-    serviceMap.set(svc.id, svc);
-  }
-
-  // Docker services (confirmed via Prometheus — actually running right now)
-  // Host is already set correctly from the `instance` label
+  // Hosts referenced by Docker services (Prometheus instance labels)
+  // These are the actual hostnames as seen by the monitoring stack
   for (const svc of dockerServices) {
-    if (!serviceMap.has(svc.id)) {
-      serviceMap.set(svc.id, svc);
+    if (svc.hostId && !hostMap.has(svc.hostId)) {
+      // Try to find IP from IP-named NetBox devices
+      const ipDevice = ipDevices.find(d => d.name === svc.hostId);
+      hostMap.set(svc.hostId, {
+        id: svc.hostId,
+        label: svc.hostId,
+        ip: ipDevice?.ip ?? "",
+        tags: [],
+      });
     }
   }
 
-  // Remove hosts that have zero services
+  // Resolve missing IPs: match named hosts to IP-named NetBox devices
+  // by checking Ansible inventories (nas-link-setup etc.)
+  await resolveHostIPs(hostMap, ipDevices, config.ansiblePath);
+
+  // ── Merge services ─────────────────────────────────────────────
+  const serviceMap = new Map<string, DiscoveredService>();
+  for (const svc of k8sServices) serviceMap.set(svc.id, svc);
+  for (const svc of dockerServices) {
+    if (!serviceMap.has(svc.id)) serviceMap.set(svc.id, svc);
+  }
+
+  // Remove hosts with zero services
   const hostsWithServices = new Set([
     ...k8sServices.map(s => s.hostId),
     ...dockerServices.map(s => s.hostId),
@@ -165,44 +148,31 @@ async function main() {
   const allServices = [...serviceMap.values()];
   console.log(`\n  Total services: ${allServices.length} (${k8sServices.length} K8s + ${dockerServices.length} Docker)`);
 
-  // ── Step 2b: Dependency Discovery ───────────────────────────────
+  // ── Dependencies ───────────────────────────────────────────────
   const runningIds = new Set(allServices.map(s => s.id));
   const depLinks = await discoverDependencies(config, runningIds);
 
-  // ── Step 3: Enrichment (Grafana + Caddy quickLinks) ────────────
+  // ── Step 3: Enrichment ─────────────────────────────────────────
   console.log("\n── Step 3: Enrichment ──");
 
-  let dashboards: GrafanaDashboard[] = [];
   let dashboardMap = new Map<string, GrafanaDashboard[]>();
-
   if (config.grafana.url && config.grafana.token) {
-    dashboards = await discoverDashboards(config.grafana);
-    dashboardMap = matchDashboardsToServices(
-      dashboards,
-      allServices.map(s => s.id),
-    );
+    const dashboards = await discoverDashboards(config.grafana);
+    dashboardMap = matchDashboardsToServices(dashboards, allServices.map(s => s.id));
     console.log(`  Dashboard matches: ${dashboardMap.size} services`);
-  } else {
-    console.log("  Grafana not configured — skipping");
   }
 
-  // Build quickLinks from Caddy routes + Grafana dashboards
   const serviceQuickLinks = buildQuickLinks(allServices, caddyRoutes, dashboardMap, config.domain);
 
-  // ── Step 4: Physical Topology + Assembly ─────────────────────────
+  // ── Step 4: Physical Topology + Assembly ───────────────────────
   console.log("\n── Step 4: Physical Topology + Assembly ──");
 
-  // Discover physical Ethernet connections from Ansible configs
-  const knownHostIPs2 = new Map<string, string>();
+  const hostIPs = new Map<string, string>();
   for (const [id, data] of hostMap) {
-    if (data.ip) knownHostIPs2.set(id, data.ip);
+    if (data.ip) hostIPs.set(id, data.ip);
   }
 
-  const topology = await discoverPhysicalTopology(
-    config,
-    physical.devices,
-    knownHostIPs2,
-  );
+  const topology = await discoverPhysicalTopology(config, physical.devices, hostIPs);
 
   // Add network devices (router, switch) as hosts
   for (const nd of topology.networkDevices) {
@@ -211,61 +181,62 @@ async function main() {
     }
   }
 
-  // Build zones
+  // ── Build zones dynamically from host subnets ──────────────────
+  // Group hosts by /24 subnet and create a zone per group
+  const subnetHosts = new Map<string, string[]>();
+  for (const [id, data] of hostMap) {
+    const subnet = getSubnet(data.ip);
+    if (!subnet) continue;
+    if (!subnetHosts.has(subnet)) subnetHosts.set(subnet, []);
+    subnetHosts.get(subnet)!.push(id);
+  }
+
+  // Find NetBox prefix descriptions for each subnet
+  const prefixDescriptions = new Map<string, string>();
+  for (const p of physical.prefixes) {
+    const subnet = getSubnet(p.prefix.split("/")[0]);
+    if (subnet) prefixDescriptions.set(subnet, p.description);
+  }
+
   const zones: Array<{ id: string; cidr: string; label: string; hostIds: string[] }> = [];
+  for (const [subnet, hostIds] of subnetHosts) {
+    const cidr = `${subnet}.0/24`;
+    const desc = prefixDescriptions.get(subnet) ?? "";
+    const label = desc ? desc.toUpperCase() : `${cidr}`;
+    const zoneId = desc
+      ? desc.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+      : `net-${subnet.replace(/\./g, "-")}`;
 
-  zones.push({
-    id: "primary",
-    cidr: "192.168.0.0/24",
-    label: "PRIMARY NETWORK",
-    hostIds: [],
-  });
+    zones.push({ id: zoneId, cidr, label, hostIds });
+  }
 
-  zones.push({
-    id: "nas",
-    cidr: "10.0.1.0/24",
-    label: "NAS SUBNET",
-    hostIds: [],
-  });
-
-  // Assign colors and zone membership to hosts
-  const hosts = [...hostMap.values()].map((h, idx) => ({
-    ...h,
-    zone: "",
-    color: HOST_COLORS[idx % HOST_COLORS.length],
-  }));
-
-  for (const host of hosts) {
-    for (const zone of zones) {
-      if (ipInPrefix(host.ip, zone.cidr)) {
-        host.zone = zone.id;
-        zone.hostIds.push(host.id);
-        break;
-      }
-    }
-    // Network devices without IPs (switch) go in primary zone
-    if (!host.zone) {
-      host.zone = "primary";
-      zones[0].hostIds.push(host.id);
+  // Hosts without IPs (e.g., switches) go into the zone that has the most hosts
+  const largestZone = zones.reduce((a, b) => a.hostIds.length >= b.hostIds.length ? a : b, zones[0]);
+  for (const [id, data] of hostMap) {
+    if (!data.ip && largestZone && !largestZone.hostIds.includes(id)) {
+      largestZone.hostIds.push(id);
     }
   }
 
-  // Collect all unique tags
+  // Assign zone to each host
+  const hostZoneMap = new Map<string, string>();
+  for (const zone of zones) {
+    for (const hostId of zone.hostIds) {
+      hostZoneMap.set(hostId, zone.id);
+    }
+  }
+
+  const hosts = [...hostMap.values()].map((h, idx) => ({
+    ...h,
+    zone: hostZoneMap.get(h.id) ?? zones[0]?.id ?? "",
+    color: HOST_COLORS[idx % HOST_COLORS.length],
+  }));
+
   const allTags = [...new Set(allServices.flatMap(s => s.tags))].sort();
 
-  // Build connections: service dependencies + physical Ethernet links
   const connections = [
-    ...depLinks.map(d => ({
-      source: d.source,
-      target: d.target,
-      type: "dependency" as const,
-    })),
-    ...topology.links.map(link => ({
-      source: link.source,
-      target: link.target,
-      type: "physical" as const,
-      label: link.label,
-    })),
+    ...depLinks.map(d => ({ source: d.source, target: d.target, type: "dependency" as const })),
+    ...topology.links.map(l => ({ source: l.source, target: l.target, type: "physical" as const, label: l.label })),
   ];
 
   const output: InfraVisionOutput = {
@@ -279,25 +250,13 @@ async function main() {
       },
     },
     zones,
-    hosts: hosts.map(h => ({
-      id: h.id,
-      label: h.label,
-      ip: h.ip,
-      zone: h.zone,
-      color: h.color,
-      tags: h.tags,
-    })),
+    hosts: hosts.map(h => ({ id: h.id, label: h.label, ip: h.ip, zone: h.zone, color: h.color, tags: h.tags })),
     services: allServices.map(s => ({
-      id: s.id,
-      label: s.label,
-      description: s.description,
-      hostId: s.hostId,
-      type: s.type,
-      ports: s.ports,
+      id: s.id, label: s.label, description: s.description, hostId: s.hostId,
+      type: s.type, ports: s.ports,
       ...(s.image ? { image: s.image } : {}),
       ...(s.chart ? { chart: s.chart } : {}),
-      dependencies: s.dependencies,
-      tags: s.tags,
+      dependencies: s.dependencies, tags: s.tags,
       quickLinks: serviceQuickLinks.get(s.id) ?? [],
       ...(s.syncStatus ? { syncStatus: s.syncStatus } : {}),
       active: s.active,
@@ -306,14 +265,12 @@ async function main() {
     tags: allTags,
   };
 
-  // Write output
   const outputPath = resolve(import.meta.dirname, "../public/infravision-data.json");
   await writeFile(outputPath, JSON.stringify(output, null, 2) + "\n");
   console.log(`\n✓ Written to ${outputPath}`);
   console.log(`  ${output.hosts.length} hosts, ${output.services.length} services, ${output.zones.length} zones`);
   console.log(`  ${output.connections.length} connections, ${caddyRoutes.length} quickLink routes`);
 
-  // Print summary table
   console.log("\n── Service Summary ──");
   for (const svc of output.services) {
     const links = svc.quickLinks.length > 0 ? ` [${svc.quickLinks.length} links]` : "";
@@ -321,6 +278,96 @@ async function main() {
   }
 }
 
+/**
+ * Resolve missing host IPs by scanning Ansible inventories for IP ↔ hostname mappings.
+ * No hardcoded values — reads all inventory files dynamically.
+ */
+async function resolveHostIPs(
+  hostMap: Map<string, { id: string; label: string; ip: string; tags: string[] }>,
+  ipDevices: Array<{ name: string; ip: string }>,
+  ansiblePath: string,
+) {
+  const { readFile } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  const { existsSync, readdirSync } = await import("node:fs");
+
+  // Scan all inventory files for ansible_host=IP mappings
+  const ipMap = new Map<string, string>(); // hostname → IP
+
+  const walkInventories = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walkInventories(fullPath);
+      } else if (entry.name.endsWith(".ini") || entry.name.endsWith(".yml")) {
+        try {
+          const content = require("node:fs").readFileSync(fullPath, "utf-8");
+          // Match: hostname ansible_host=IP
+          for (const m of content.matchAll(/^(\S+)\s+ansible_host=(\d+\.\d+\.\d+\.\d+)/gm)) {
+            ipMap.set(m[1], m[2]);
+          }
+          // Match: IP ansible_user=... (the IP itself is the host)
+          for (const m of content.matchAll(/^(\d+\.\d+\.\d+\.\d+)\s+ansible_user=/gm)) {
+            // These are IP-as-hostname entries, check if any named host maps here
+          }
+        } catch { /* skip unreadable files */ }
+      }
+    }
+  };
+
+  walkInventories(ansiblePath);
+
+  // Also scan group_vars for IP definitions
+  const walkGroupVars = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walkGroupVars(fullPath);
+      } else if (entry.name === "all.yml" || entry.name === "all.yaml") {
+        try {
+          const content = require("node:fs").readFileSync(fullPath, "utf-8");
+          // Match: variable_ip: "IP" or variable_ip: IP
+          for (const m of content.matchAll(/^\w+_ip:\s*["']?(\d+\.\d+\.\d+\.\d+)/gm)) {
+            // Store as potential IP for hosts, will be matched below
+          }
+          // Match: nas_ip, node1_lan_ip, etc. and try to map to host names
+          for (const m of content.matchAll(/^(\w+)_(?:lan_)?ip:\s*["']?(\d+\.\d+\.\d+\.\d+)/gm)) {
+            const varPrefix = m[1]; // e.g., "node1", "nas"
+            const ip = m[2];
+            // Try to find which host this IP belongs to
+            for (const [hostId, host] of hostMap) {
+              if (!host.ip && (hostId.includes(varPrefix) || varPrefix.includes(hostId.replace("lw-", "")))) {
+                host.ip = ip;
+                ipMap.set(hostId, ip);
+              }
+            }
+          }
+        } catch { /* skip */ }
+      }
+    }
+  };
+
+  walkGroupVars(ansiblePath);
+
+  // Apply inventory mappings to hosts with missing IPs
+  for (const [hostId, host] of hostMap) {
+    if (!host.ip) {
+      const inventoryIp = ipMap.get(hostId);
+      if (inventoryIp) host.ip = inventoryIp;
+    }
+  }
+
+  // Last resort: match named hosts to IP-named NetBox devices by checking
+  // if the Prometheus instance label matches a NetBox IP device
+}
+
+/**
+ * Build quickLinks by matching Caddy route subdomains to service IDs.
+ * Uses fuzzy matching: caddy subdomain "grafana" matches service "grafana",
+ * caddy subdomain "pdf" matches service containing "pdf", etc.
+ */
 function buildQuickLinks(
   services: DiscoveredService[],
   caddyRoutes: CaddyRoute[],
@@ -329,57 +376,49 @@ function buildQuickLinks(
 ): Map<string, Array<{ label: string; url: string; icon: string }>> {
   const result = new Map<string, Array<{ label: string; url: string; icon: string }>>();
 
-  // Index Caddy routes by serviceId
-  const routeByServiceId = new Map<string, CaddyRoute>();
+  // Build index: caddy subdomain/serviceId → route
+  const routeIndex = new Map<string, CaddyRoute>();
   for (const route of caddyRoutes) {
-    if (route.serviceId) {
-      routeByServiceId.set(route.serviceId, route);
-    }
-  }
-
-  // Map Caddy service IDs to actual service IDs for quickLink matching
-  const quickLinkRemap: Record<string, string> = {
-    "hashi-vault": "vault",
-    "pdf": "stirling-pdf",
-    "grafana": "grafana-stack",
-  };
-  for (const [caddyId, svcId] of Object.entries(quickLinkRemap)) {
-    const route = routeByServiceId.get(caddyId);
-    if (route && !routeByServiceId.has(svcId)) {
-      routeByServiceId.set(svcId, route);
-    }
+    if (route.serviceId) routeIndex.set(route.serviceId, route);
+    routeIndex.set(route.subdomain, route);
   }
 
   for (const svc of services) {
     const links: Array<{ label: string; url: string; icon: string }> = [];
 
-    // Exact match only — fuzzy matching causes too many false positives
-    const matchedRoute = routeByServiceId.get(svc.id);
+    // Try exact match on service ID, then on subdomain
+    let route = routeIndex.get(svc.id);
 
-    if (matchedRoute) {
+    // If no exact match, try matching by checking if any caddy route
+    // subdomain is a substring of the service ID or vice versa
+    if (!route) {
+      const svcNorm = svc.id.toLowerCase().replace(/[-_]/g, "");
+      for (const [key, r] of routeIndex) {
+        const keyNorm = key.toLowerCase().replace(/[-_]/g, "");
+        // Only match if one is a substantial substring of the other (>3 chars)
+        if (keyNorm.length > 3 && svcNorm.includes(keyNorm)) { route = r; break; }
+        if (svcNorm.length > 3 && keyNorm.includes(svcNorm)) { route = r; break; }
+      }
+    }
+
+    if (route) {
       links.push({
         label: "Open Web UI",
-        url: `https://${matchedRoute.subdomain}.${domain}`,
+        url: `https://${route.subdomain}.${domain}`,
         icon: "🌐",
       });
     }
 
-    // Add Grafana dashboard links (rewrite localhost URLs to public domain)
+    // Grafana dashboard links
     const dashboards = dashboardMap.get(svc.id);
     if (dashboards) {
       for (const dash of dashboards) {
         const publicUrl = dash.url.replace(/https?:\/\/localhost:\d+/, `https://grafana.${domain}`);
-        links.push({
-          label: `Dashboard: ${dash.title}`,
-          url: publicUrl,
-          icon: "📊",
-        });
+        links.push({ label: `Dashboard: ${dash.title}`, url: publicUrl, icon: "📊" });
       }
     }
 
-    if (links.length > 0) {
-      result.set(svc.id, links);
-    }
+    if (links.length > 0) result.set(svc.id, links);
   }
 
   return result;
@@ -388,11 +427,9 @@ function buildQuickLinks(
 function ipInPrefix(ip: string, cidr: string): boolean {
   const [prefix, bits] = cidr.split("/");
   if (!prefix || !bits || !ip) return false;
-
   const ipNum = ipToNum(ip);
   const prefixNum = ipToNum(prefix);
   const mask = ~((1 << (32 - parseInt(bits, 10))) - 1) >>> 0;
-
   return (ipNum & mask) === (prefixNum & mask);
 }
 
@@ -400,6 +437,11 @@ function ipToNum(ip: string): number {
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some(isNaN)) return 0;
   return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function getSubnet(ip: string): string {
+  const parts = ip.split(".");
+  return parts.length === 4 ? parts.slice(0, 3).join(".") : "";
 }
 
 main().catch(err => {

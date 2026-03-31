@@ -53,7 +53,9 @@ export async function discoverRunningContainers(config: PrometheusConfig): Promi
     /grafana\/alloy/i,      // monitoring agent
     /crowdsec/i,            // security agent
     /vault-shim/i,          // sidecar shims
-    /infravision-builder/,  // ephemeral build container
+    /infravision/i,         // infravision itself (nginx + builder)
+    /lightpanda/i,          // headless browser tool
+    /backup/i,              // backup-related containers
   ];
 
   // Docker auto-named containers (adjective_scientist pattern) are ephemeral
