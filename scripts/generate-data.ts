@@ -6,6 +6,7 @@ import { discoverPhysicalLayer } from "./pipeline/netbox.js";
 import { discoverCaddyRoutes, discoverArgoApps, discoverK8sHost } from "./pipeline/ansible.js";
 import { discoverArgoCDApps } from "./pipeline/argocd.js";
 import { discoverRunningContainers } from "./pipeline/prometheus.js";
+import { discoverPhysicalTopology } from "./pipeline/topology.js";
 import { discoverDashboards, matchDashboardsToServices } from "./pipeline/grafana.js";
 
 loadDotEnv({ path: resolve(import.meta.dirname, "../.env") });
@@ -176,23 +177,31 @@ async function main() {
   // Build quickLinks from Caddy routes + Grafana dashboards
   const serviceQuickLinks = buildQuickLinks(allServices, caddyRoutes, dashboardMap, config.domain);
 
-  // ── Step 4: Assemble Output ────────────────────────────────────
-  console.log("\n── Step 4: Assembling output ──");
+  // ── Step 4: Physical Topology + Assembly ─────────────────────────
+  console.log("\n── Step 4: Physical Topology + Assembly ──");
 
-  // Remove ghost hosts that leaked from Ansible inventory group names
-  const knownHosts = new Set(["lw-main", "lw-s1", "lw-c1", "lw-nas"]);
-  for (const key of hostMap.keys()) {
-    if (!knownHosts.has(key)) {
-      hostMap.delete(key);
+  // Discover physical Ethernet connections from Ansible configs
+  const knownHostIPs2 = new Map<string, string>();
+  for (const [id, data] of hostMap) {
+    if (data.ip) knownHostIPs2.set(id, data.ip);
+  }
+
+  const topology = await discoverPhysicalTopology(
+    config,
+    physical.devices,
+    knownHostIPs2,
+  );
+
+  // Add network devices (router, switch) as hosts
+  for (const nd of topology.networkDevices) {
+    if (!hostMap.has(nd.id)) {
+      hostMap.set(nd.id, { id: nd.id, label: nd.label, ip: nd.ip, tags: [nd.role] });
     }
   }
 
-  // Build zones: primary network (192.168.0.0/24) + NAS subnet from Caddy hints
-  // NetBox prefixes are mostly overlay networks (10.x, 172.x) — the physical LAN
-  // (192.168.0.0/24) isn't tracked there, so we create it explicitly.
+  // Build zones
   const zones: Array<{ id: string; cidr: string; label: string; hostIds: string[] }> = [];
 
-  // Primary LAN zone: contains lw-main, lw-s1, lw-c1
   zones.push({
     id: "primary",
     cidr: "192.168.0.0/24",
@@ -200,16 +209,12 @@ async function main() {
     hostIds: [],
   });
 
-  // NAS subnet: lw-nas is on a separate 10.0.1.0/24 network
   zones.push({
     id: "nas",
     cidr: "10.0.1.0/24",
     label: "NAS SUBNET",
     hostIds: [],
   });
-
-  // K8s overlay (10.10.10.0/24) is an internal cluster network, not a physical zone
-  // lw-c1 sits on the primary network — no separate zone needed
 
   // Assign colors and zone membership to hosts
   const hosts = [...hostMap.values()].map((h, idx) => ({
@@ -226,8 +231,9 @@ async function main() {
         break;
       }
     }
-    if (!host.zone && zones.length > 0) {
-      host.zone = zones[0].id;
+    // Network devices without IPs (switch) go in primary zone
+    if (!host.zone) {
+      host.zone = "primary";
       zones[0].hostIds.push(host.id);
     }
   }
@@ -235,7 +241,7 @@ async function main() {
   // Collect all unique tags
   const allTags = [...new Set(allServices.flatMap(s => s.tags))].sort();
 
-  // Build connections
+  // Build connections: service dependencies + physical Ethernet links
   const connections = [
     ...allServices.flatMap(s =>
       s.dependencies.map(dep => ({
@@ -244,11 +250,11 @@ async function main() {
         type: "dependency" as const,
       }))
     ),
-    ...physical.connections.map(c => ({
-      source: c.sourceDevice,
-      target: c.targetDevice,
+    ...topology.links.map(link => ({
+      source: link.source,
+      target: link.target,
       type: "physical" as const,
-      label: c.label,
+      label: link.label,
     })),
   ];
 

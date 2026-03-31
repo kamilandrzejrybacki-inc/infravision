@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T13:36:20.555Z",
+    "generated_at": "2026-03-31T13:51:19.432Z",
     "sources": {
       "netbox": "http://192.168.0.105:8081",
       "ansible": "/home/kamil-rybacki/Code/ansible",
@@ -15,7 +15,9 @@
       "hostIds": [
         "lw-main",
         "lw-s1",
-        "lw-c1"
+        "lw-c1",
+        "router",
+        "switch"
       ]
     },
     {
@@ -63,6 +65,26 @@
       "zone": "nas",
       "color": "215 52% 58%",
       "tags": []
+    },
+    {
+      "id": "router",
+      "label": "Router",
+      "ip": "192.168.0.1",
+      "zone": "primary",
+      "color": "268 42% 58%",
+      "tags": [
+        "router"
+      ]
+    },
+    {
+      "id": "switch",
+      "label": "LAN Switch",
+      "ip": "",
+      "zone": "primary",
+      "color": "330 50% 55%",
+      "tags": [
+        "switch"
+      ]
     }
   ],
   "services": [
@@ -506,7 +528,38 @@
       "active": true
     }
   ],
-  "connections": [],
+  "connections": [
+    {
+      "source": "lw-main",
+      "target": "lw-nas",
+      "type": "physical",
+      "label": "USB-eth"
+    },
+    {
+      "source": "router",
+      "target": "switch",
+      "type": "physical",
+      "label": "Uplink"
+    },
+    {
+      "source": "lw-main",
+      "target": "switch",
+      "type": "physical",
+      "label": "Ethernet"
+    },
+    {
+      "source": "lw-s1",
+      "target": "switch",
+      "type": "physical",
+      "label": "Ethernet"
+    },
+    {
+      "source": "lw-c1",
+      "target": "switch",
+      "type": "physical",
+      "label": "Ethernet"
+    }
+  ],
   "tags": [
     "automation",
     "dev-tools"
