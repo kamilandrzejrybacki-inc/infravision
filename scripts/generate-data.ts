@@ -5,7 +5,7 @@ import type { PipelineConfig, InfraVisionOutput, DiscoveredService, CaddyRoute, 
 import { discoverPhysicalLayer } from "./pipeline/netbox.js";
 import { discoverCaddyRoutes, discoverArgoApps, discoverK8sHost } from "./pipeline/ansible.js";
 import { discoverArgoCDApps, getArgoCDSessionToken } from "./pipeline/argocd.js";
-import { discoverRunningContainers } from "./pipeline/prometheus.js";
+import { discoverRunningContainers, resolveHostIPs, discoverNetworkInterfaces } from "./pipeline/prometheus.js";
 import { discoverPhysicalTopology } from "./pipeline/topology.js";
 import { discoverDependencies } from "./pipeline/dependencies.js";
 import { discoverDashboards, matchDashboardsToServices } from "./pipeline/grafana.js";
@@ -111,37 +111,49 @@ async function main() {
     });
   }
 
-  // ── Build Host Map (derived from discovered data, not hardcoded) ─
+  // ── Build Host Map from live sources (Prometheus + NetBox) ──────
   const hostMap = new Map<string, { id: string; label: string; ip: string; tags: string[] }>();
 
-  // Named NetBox devices
-  for (const d of namedDevices) {
-    hostMap.set(d.name, { id: d.name, label: d.name, ip: d.ip || "", tags: d.tags });
+  // All hosts come from Prometheus instance labels (what's actually monitored)
+  const allHostnames = new Set<string>();
+  for (const svc of k8sServices) { if (svc.hostId) allHostnames.add(svc.hostId); }
+  for (const svc of dockerServices) { if (svc.hostId) allHostnames.add(svc.hostId); }
+
+  for (const hostname of allHostnames) {
+    // Check if this host is also a named NetBox device (for tags)
+    const netboxDevice = namedDevices.find(d => d.name === hostname);
+    // If Prometheus scrapes by IP, the instance label IS the IP
+    const isIpHostname = /^\d+\.\d+\.\d+\.\d+$/.test(hostname);
+    hostMap.set(hostname, {
+      id: hostname,
+      label: netboxDevice?.label ?? hostname,
+      ip: isIpHostname ? hostname : (netboxDevice?.ip ?? ""),
+      tags: netboxDevice?.tags ?? [],
+    });
   }
 
-  // K8s host from Ansible inventory
-  if (k8sHost && !hostMap.has(k8sHost.name)) {
-    hostMap.set(k8sHost.name, { id: k8sHost.name, label: k8sHost.name, ip: k8sHost.ip, tags: [] });
-  }
-
-  // Hosts referenced by Docker services (Prometheus instance labels)
-  // These are the actual hostnames as seen by the monitoring stack
-  for (const svc of dockerServices) {
-    if (svc.hostId && !hostMap.has(svc.hostId)) {
-      // Try to find IP from IP-named NetBox devices
-      const ipDevice = ipDevices.find(d => d.name === svc.hostId);
-      hostMap.set(svc.hostId, {
-        id: svc.hostId,
-        label: svc.hostId,
-        ip: ipDevice?.ip ?? "",
-        tags: [],
-      });
+  // Resolve IPs from Prometheus: kube_node_info has internal_ip for K8s nodes
+  if (config.grafana.url && config.grafana.token) {
+    const promIPs = await resolveHostIPs(
+      { grafanaUrl: config.grafana.url, grafanaToken: config.grafana.token, datasourceUid: "mimir" },
+      [...allHostnames],
+    );
+    for (const [hostname, ip] of promIPs) {
+      const host = hostMap.get(hostname);
+      if (host && !host.ip) host.ip = ip;
     }
   }
 
-  // Resolve missing IPs: match named hosts to IP-named NetBox devices
-  // by checking Ansible inventories (nas-link-setup etc.)
-  await resolveHostIPs(hostMap, ipDevices, config.ansiblePath);
+  // Fill remaining IPs from NetBox IP-named devices
+  // (e.g., NetBox has "192.168.0.105" as a device — match by NetBox description or interface MACs)
+  for (const [hostname, host] of hostMap) {
+    if (host.ip) continue;
+    // Check NetBox for IP addresses assigned to this device name
+    const netboxIpDevice = physical.devices.find(d =>
+      d.status === "active" && /^\d+\.\d+\.\d+\.\d+$/.test(d.name) && d.ip === hostname
+    );
+    if (netboxIpDevice) host.ip = netboxIpDevice.name;
+  }
 
   // ── Merge services ─────────────────────────────────────────────
   const serviceMap = new Map<string, DiscoveredService>();
@@ -292,90 +304,6 @@ async function main() {
   }
 }
 
-/**
- * Resolve missing host IPs by scanning Ansible inventories for IP ↔ hostname mappings.
- * No hardcoded values — reads all inventory files dynamically.
- */
-async function resolveHostIPs(
-  hostMap: Map<string, { id: string; label: string; ip: string; tags: string[] }>,
-  ipDevices: Array<{ name: string; ip: string }>,
-  ansiblePath: string,
-) {
-  const { readFile } = await import("node:fs/promises");
-  const { join } = await import("node:path");
-  const { existsSync, readdirSync } = await import("node:fs");
-
-  // Scan all inventory files for ansible_host=IP mappings
-  const ipMap = new Map<string, string>(); // hostname → IP
-
-  const walkInventories = (dir: string) => {
-    if (!existsSync(dir)) return;
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walkInventories(fullPath);
-      } else if (entry.name.endsWith(".ini") || entry.name.endsWith(".yml")) {
-        try {
-          const content = require("node:fs").readFileSync(fullPath, "utf-8");
-          // Match: hostname ansible_host=IP
-          for (const m of content.matchAll(/^(\S+)\s+ansible_host=(\d+\.\d+\.\d+\.\d+)/gm)) {
-            ipMap.set(m[1], m[2]);
-          }
-          // Match: IP ansible_user=... (the IP itself is the host)
-          for (const m of content.matchAll(/^(\d+\.\d+\.\d+\.\d+)\s+ansible_user=/gm)) {
-            // These are IP-as-hostname entries, check if any named host maps here
-          }
-        } catch { /* skip unreadable files */ }
-      }
-    }
-  };
-
-  walkInventories(ansiblePath);
-
-  // Also scan group_vars for IP definitions
-  const walkGroupVars = (dir: string) => {
-    if (!existsSync(dir)) return;
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walkGroupVars(fullPath);
-      } else if (entry.name === "all.yml" || entry.name === "all.yaml") {
-        try {
-          const content = require("node:fs").readFileSync(fullPath, "utf-8");
-          // Match: variable_ip: "IP" or variable_ip: IP
-          for (const m of content.matchAll(/^\w+_ip:\s*["']?(\d+\.\d+\.\d+\.\d+)/gm)) {
-            // Store as potential IP for hosts, will be matched below
-          }
-          // Match: nas_ip, node1_lan_ip, etc. and try to map to host names
-          for (const m of content.matchAll(/^(\w+)_(?:lan_)?ip:\s*["']?(\d+\.\d+\.\d+\.\d+)/gm)) {
-            const varPrefix = m[1]; // e.g., "node1", "nas"
-            const ip = m[2];
-            // Try to find which host this IP belongs to
-            for (const [hostId, host] of hostMap) {
-              if (!host.ip && (hostId.includes(varPrefix) || varPrefix.includes(hostId.replace("lw-", "")))) {
-                host.ip = ip;
-                ipMap.set(hostId, ip);
-              }
-            }
-          }
-        } catch { /* skip */ }
-      }
-    }
-  };
-
-  walkGroupVars(ansiblePath);
-
-  // Apply inventory mappings to hosts with missing IPs
-  for (const [hostId, host] of hostMap) {
-    if (!host.ip) {
-      const inventoryIp = ipMap.get(hostId);
-      if (inventoryIp) host.ip = inventoryIp;
-    }
-  }
-
-  // Last resort: match named hosts to IP-named NetBox devices by checking
-  // if the Prometheus instance label matches a NetBox IP device
-}
 
 /**
  * Build quickLinks by matching Caddy route subdomains to service IDs.
