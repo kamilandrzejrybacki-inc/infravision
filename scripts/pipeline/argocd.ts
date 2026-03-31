@@ -29,10 +29,16 @@ interface ArgoCDAppList {
 export async function getArgoCDSessionToken(url: string, password: string): Promise<string | null> {
   if (!password) return null;
 
-  if (!url.startsWith("https://") && !url.includes("localhost") && !url.includes("127.0.0.1")) {
-    console.warn("[argocd] WARNING: ARGOCD_URL is not HTTPS — password auth disabled to prevent credential exposure over plaintext");
-    console.warn("[argocd] Use ARGOCD_TOKEN instead, or set ARGOCD_URL to an HTTPS endpoint");
-    return null;
+  // Allow plaintext HTTP only for local/private networks
+  if (!url.startsWith("https://")) {
+    const host = new URL(url).hostname;
+    const isPrivate = host === "localhost" || host === "127.0.0.1" ||
+      host.startsWith("10.") || host.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+    if (!isPrivate) {
+      console.warn("[argocd] WARNING: ARGOCD_URL is not HTTPS and not a private network — password auth disabled");
+      return null;
+    }
   }
 
   try {
