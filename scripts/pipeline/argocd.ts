@@ -29,6 +29,12 @@ interface ArgoCDAppList {
 export async function getArgoCDSessionToken(url: string, password: string): Promise<string | null> {
   if (!password) return null;
 
+  if (!url.startsWith("https://") && !url.includes("localhost") && !url.includes("127.0.0.1")) {
+    console.warn("[argocd] WARNING: ARGOCD_URL is not HTTPS — password auth disabled to prevent credential exposure over plaintext");
+    console.warn("[argocd] Use ARGOCD_TOKEN instead, or set ARGOCD_URL to an HTTPS endpoint");
+    return null;
+  }
+
   try {
     const res = await fetch(`${url}/api/v1/session`, {
       method: "POST",

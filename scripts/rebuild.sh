@@ -48,9 +48,12 @@ echo "── Deploying ──"
 docker compose -f "$PROJECT_DIR/docker-compose.yml" up -d 2>/dev/null || true
 
 VOLUME_PATH=$(docker volume inspect infravision_site-data -f '{{.Mountpoint}}' 2>/dev/null || echo "")
-if [ -n "$VOLUME_PATH" ] && [ -d "$PROJECT_DIR/dist-out" ]; then
+if [[ -n "$VOLUME_PATH" && "$VOLUME_PATH" == /var/lib/docker/volumes/* && -d "$PROJECT_DIR/dist-out" ]]; then
   sudo rsync -a --delete "$PROJECT_DIR/dist-out/" "$VOLUME_PATH/"
   echo "✓ Deployed to nginx volume"
+else
+  echo "ERROR: Volume path '$VOLUME_PATH' failed safety check — aborting deploy" >&2
+  exit 1
 fi
 
 echo "✓ Rebuild complete — http://$(hostname -I | awk '{print $1}'):8090"

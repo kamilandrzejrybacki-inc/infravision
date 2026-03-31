@@ -22,18 +22,32 @@ function optionalEnv(key: string, fallback: string): string {
   return process.env[key] || fallback;
 }
 
+function validateUrl(envKey: string, url: string): string {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(`${envKey} must use http:// or https://`);
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("must use")) throw e;
+    throw new Error(`${envKey} is not a valid URL: "${url}"`);
+  }
+  return url;
+}
+
 const config: PipelineConfig = {
   netbox: {
-    url: requireEnv("NETBOX_URL"),
+    url: validateUrl("NETBOX_URL", requireEnv("NETBOX_URL")),
     token: requireEnv("NETBOX_TOKEN"),
   },
   argocd: {
-    url: optionalEnv("ARGOCD_URL", ""),
+    url: validateUrl("ARGOCD_URL", optionalEnv("ARGOCD_URL", "")),
     token: optionalEnv("ARGOCD_TOKEN", ""),
     password: optionalEnv("ARGOCD_PASSWORD", ""),
   },
   grafana: {
-    url: optionalEnv("GRAFANA_URL", ""),
+    url: validateUrl("GRAFANA_URL", optionalEnv("GRAFANA_URL", "")),
     token: optionalEnv("GRAFANA_TOKEN", ""),
   },
   domain: requireEnv("INFRA_DOMAIN"),
@@ -243,10 +257,10 @@ async function main() {
     metadata: {
       generated_at: new Date().toISOString(),
       sources: {
-        netbox: config.netbox.url,
-        ansible: config.ansiblePath,
-        ...(config.argocd.url ? { argocd: config.argocd.url } : {}),
-        ...(config.grafana.url ? { grafana: config.grafana.url } : {}),
+        netbox: "configured",
+        ansible: "configured",
+        ...(config.argocd.url ? { argocd: "configured" } : {}),
+        ...(config.grafana.url ? { grafana: "configured" } : {}),
       },
     },
     zones,
