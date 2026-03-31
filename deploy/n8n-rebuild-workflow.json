@@ -1,0 +1,47 @@
+{
+  "name": "InfraVision Daily Rebuild",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Midnight Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/infravision && source .env && export NETBOX_URL NETBOX_TOKEN INFRA_DOMAIN ANSIBLE_PATH GRAFANA_URL GRAFANA_TOKEN && bash scripts/rebuild.sh 2>&1"
+      },
+      "id": "rebuild",
+      "name": "Run Rebuild",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [420, 300]
+    }
+  ],
+  "connections": {
+    "Midnight Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Rebuild",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
