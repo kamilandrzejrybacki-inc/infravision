@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import type { Service, Host } from "@/data/infrastructure";
+import type { Service, Host } from "@/data/types";
 import { getHostById, getServiceById } from "@/data/infrastructure";
 
 interface DetailPanelProps {

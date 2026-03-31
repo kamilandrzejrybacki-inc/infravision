@@ -1,7 +1,7 @@
 import type { Service, Host, NetworkZone, Connection, InfraVisionData } from './types';
 
 // Deprecated: Use Connection type from types.ts instead
-export interface Dependency {
+interface Dependency {
   source: string;
   target: string;
   label?: string;

@@ -1,4 +1,4 @@
-import type { Host, NetworkZone } from "@/data/infrastructure";
+import type { Host, NetworkZone } from "@/data/types";
 import { hosts as allHosts, dependencies } from "@/data/infrastructure";
 import type { Node } from "@xyflow/react";
 
