@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ReactFlow,
@@ -61,6 +61,12 @@ function InfraCanvas() {
     };
   }, [data]);
 
+  useEffect(() => {
+    if (processedData && activeHosts.length === 0) {
+      setActiveHosts(processedData.hosts.map(h => h.id));
+    }
+  }, [processedData]);
+
   const toggleLayer = useCallback((layer: string) => {
     setActiveLayers(prev =>
       prev.includes(layer) ? prev.filter(l => l !== layer) : [...prev, layer]
@@ -80,7 +86,7 @@ function InfraCanvas() {
   }, []);
 
   const layoutNodes = useMemo(() => {
-    const { nodes } = computeLayout(zones, activeLayers, activeTags);
+    const { nodes } = computeLayout(zones, activeLayers, activeTags, processedData?.hosts ?? []);
     const allServices = processedData?.hosts.flatMap(h => h.services) ?? [];
     const effectiveActiveHosts = activeHosts.length > 0
       ? activeHosts
@@ -120,7 +126,7 @@ function InfraCanvas() {
 
   const edges = useMemo(
     () => buildEdges(processedData?.connections ?? []),
-    [processedData?.connections]
+    [processedData]
   );
 
   const dimmedEdges = useMemo(() => {

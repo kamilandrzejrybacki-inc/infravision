@@ -1,5 +1,5 @@
 import type { Host, NetworkZone } from "@/data/types";
-import { hosts as allHosts, dependencies } from "@/data/infrastructure";
+import { dependencies } from "@/data/infrastructure";
 import type { Node } from "@xyflow/react";
 
 const NETWORK_ZONE_PADDING = 60;
@@ -44,6 +44,7 @@ export function computeLayout(
   zones: NetworkZone[],
   _activeLayers: string[],
   _activeTags: string[],
+  hosts: Host[],
 ): LayoutResult {
   const nodes: Node[] = [];
   const zonePositions: Record<string, { x: number; y: number; width: number; height: number }> = {};
@@ -51,7 +52,7 @@ export function computeLayout(
 
   for (const zone of zones) {
     const zoneHosts = zone.hostIds
-      .map(id => allHosts.find(h => h.id === id)!)
+      .map(id => hosts.find(h => h.id === id)!)
       .filter(Boolean);
 
     const hostHeights = zoneHosts.map(computeHostHeight);
