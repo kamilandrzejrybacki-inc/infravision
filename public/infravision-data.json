@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T14:15:02.318Z",
+    "generated_at": "2026-03-31T15:41:55.964Z",
     "sources": {
       "netbox": "http://192.168.0.105:8081",
       "ansible": "/home/kamil-rybacki/Code/ansible",
