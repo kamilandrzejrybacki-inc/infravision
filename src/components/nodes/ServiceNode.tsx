@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useHighlight } from "@/lib/highlight";
 
 interface ServiceData {
@@ -130,6 +130,8 @@ const ServiceNode = memo(({ data, id }: NodeProps) => {
           ))}
         </div>
       )}
+      <Handle type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none" }} />
+      <Handle type="target" position={Position.Left} style={{ opacity: 0, pointerEvents: "none" }} />
     </div>
   );
 });
