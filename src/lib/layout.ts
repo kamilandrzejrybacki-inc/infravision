@@ -37,12 +37,9 @@ const F_NET_DEVICE = "500 10px 'JetBrains Mono', monospace";
 const F_NET_DEVICE_IP = "400 9px 'JetBrains Mono', monospace";
 const F_PHYS_BADGE = "400 10px 'JetBrains Mono', monospace";
 
-const BADGE_DOT = 5;
-const BADGE_PAD = 14; // 7px each side
-const BADGE_GAP = 6;
-const DOT_SELF = 6;
-const DOT_SYNC = 7;
-const DOT_GAP = 6;
+const DOT_SIZE = 5;
+const DOT_GAP = 4;
+const DOTS_GROUP_GAP = 4; // gap before the indicator dots cluster
 
 function computeHostWidth(
   host: Host,
@@ -74,22 +71,24 @@ function computeHostWidth(
     const prefix = isK8s ? (i === services.length - 1 ? "└ " : "├ ") : "";
     const nameW = measureText(prefix + svc.label, isK8s ? F_SERVICE_K8S : F_SERVICE);
 
+    // Leading dots (sync status, dep target indicator)
     let dotsW = 0;
-    if (isK8s && svc.syncStatus) dotsW += DOT_SYNC + DOT_GAP;
-    if (depTargetIds.has(svc.id)) dotsW += DOT_SELF + DOT_GAP;
+    if (isK8s && svc.syncStatus) dotsW += DOT_SIZE + DOT_GAP;
+    if (depTargetIds.has(svc.id)) dotsW += DOT_SIZE + DOT_GAP;
 
-    let badgesW = 0;
-    for (const depId of svc.dependencies) {
-      const depLabel = serviceLabel.get(depId) ?? depId;
-      badgesW += BADGE_GAP + BADGE_DOT + 4 + measureText(depLabel, F_BADGE) + BADGE_PAD;
+    // Trailing indicator dots (one per dependency — labels are in tooltip now)
+    let trailingDotsW = 0;
+    if (svc.dependencies.length > 0) {
+      trailingDotsW = DOTS_GROUP_GAP + svc.dependencies.length * DOT_SIZE + (svc.dependencies.length - 1) * 3;
     }
 
-    // "not deployed" badge
+    // "not deployed" badge (still inline)
+    let badgeW = 0;
     if (svc.active === false) {
-      badgesW += BADGE_GAP + measureText("not deployed", F_BADGE) + 14;
+      badgeW = DOT_GAP + measureText("not deployed", F_BADGE) + 14;
     }
 
-    const rowW = dotsW + nameW + badgesW + 20; // 10px pad each side in service node
+    const rowW = dotsW + nameW + trailingDotsW + badgeW + 20; // 10px pad each side
     if (rowW > maxServiceW) maxServiceW = rowW;
   }
 
