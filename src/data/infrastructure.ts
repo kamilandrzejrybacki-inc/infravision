@@ -216,6 +216,22 @@ export const allTags = [
   "automation", "monitoring", "storage", "ai", "security", "files", "dev-tools", "workflow",
 ];
 
+export function getConnections(): Connection[] {
+  const depConnections: Connection[] = dependencies.map(d => ({
+    source: d.source,
+    target: d.target,
+    label: d.label,
+    type: 'dependency' as const,
+  }));
+  const physConnections: Connection[] = physicalConnections.map(p => ({
+    source: p.source,
+    target: p.target,
+    label: p.label,
+    type: 'physical' as const,
+  }));
+  return [...depConnections, ...physConnections];
+}
+
 export function getAllServices(): Service[] {
   return services;
 }

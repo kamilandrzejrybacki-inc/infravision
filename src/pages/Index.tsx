@@ -18,8 +18,9 @@ import K8sClusterNode from "@/components/nodes/K8sClusterNode";
 import Sidebar from "@/components/Sidebar";
 import DetailPanel from "@/components/DetailPanel";
 import { HighlightProvider } from "@/lib/highlight";
-import { zones, hosts, getAllServices } from "@/data/infrastructure";
+import { zones, hosts, getAllServices, getConnections } from "@/data/infrastructure";
 import { computeLayout } from "@/lib/layout";
+import { buildEdges } from "@/lib/edges";
 
 const nodeTypes: NodeTypes = {
   zone: ZoneNode,
@@ -90,6 +91,8 @@ function InfraCanvas() {
     });
   }, [activeLayers, activeTags, activeHosts, searchQuery]);
 
+  const edges = useMemo(() => buildEdges(getConnections()), []);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
 
   useMemo(() => {
@@ -144,7 +147,7 @@ function InfraCanvas() {
 
         <ReactFlow
           nodes={nodes}
-          edges={[]}
+          edges={edges}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
