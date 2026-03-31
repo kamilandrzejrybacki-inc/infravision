@@ -14,6 +14,10 @@ const K8S_HEADER_HEIGHT = 28;
 const NETWORK_ZONE_GAP = 80;
 const MIN_HOST_WIDTH = 220;
 const MAX_HOST_WIDTH = 520;
+const NET_DEVICE_WIDTH = 120;
+const NET_DEVICE_HEIGHT = 32;
+const NET_DEVICE_GAP = 12;
+const NET_DEVICE_BOTTOM_MARGIN = 16;
 
 // Reuse a single canvas element for all measurements
 let _canvas: HTMLCanvasElement | null = null;
@@ -120,19 +124,35 @@ export function computeLayout(
 
   let zoneY = 0;
 
+  const NETWORK_DEVICE_TAGS = new Set(["router", "switch", "firewall", "access-point"]);
+
   for (const zone of zones) {
-    const zoneHosts = zone.hostIds
+    const allZoneHosts = zone.hostIds
       .map(id => hosts.find(h => h.id === id)!)
       .filter(Boolean);
+
+    // Separate server hosts (have services) from network devices (router, switch, etc.)
+    const zoneHosts = allZoneHosts.filter(h => !h.tags.some(t => NETWORK_DEVICE_TAGS.has(t)));
+    const networkDevices = allZoneHosts.filter(h => h.tags.some(t => NETWORK_DEVICE_TAGS.has(t)));
 
     const hostWidths = zoneHosts.map(h => computeHostWidth(h, serviceLabel, depTargetIds));
     const hostHeights = zoneHosts.map((h, i) => computeHostHeight(h, hostWidths[i]));
     const maxHostHeight = Math.max(...hostHeights, 180);
-    const zoneWidth =
+
+    // Network devices row at the bottom of the zone
+    const netDeviceRowHeight = networkDevices.length > 0
+      ? NET_DEVICE_HEIGHT + NET_DEVICE_BOTTOM_MARGIN
+      : 0;
+
+    const hostsRowWidth =
       hostWidths.reduce((sum, w) => sum + w, 0) +
-      (zoneHosts.length - 1) * HOST_GAP_X +
-      2 * NETWORK_ZONE_PADDING;
-    const zoneHeight = maxHostHeight + 2 * NETWORK_ZONE_PADDING + ZONE_LABEL_HEIGHT;
+      (zoneHosts.length - 1) * HOST_GAP_X;
+    const netDevicesRowWidth =
+      networkDevices.length * NET_DEVICE_WIDTH +
+      (networkDevices.length - 1) * NET_DEVICE_GAP;
+
+    const zoneWidth = Math.max(hostsRowWidth, netDevicesRowWidth) + 2 * NETWORK_ZONE_PADDING;
+    const zoneHeight = maxHostHeight + netDeviceRowHeight + 2 * NETWORK_ZONE_PADDING + ZONE_LABEL_HEIGHT;
 
     nodes.push({
       id: `zone-${zone.id}`,
@@ -206,6 +226,35 @@ export function computeLayout(
       }
 
       hostX += hostWidth + HOST_GAP_X;
+    }
+
+    // Network devices row at the bottom edge of the zone
+    if (networkDevices.length > 0) {
+      const netY = NETWORK_ZONE_PADDING + ZONE_LABEL_HEIGHT + maxHostHeight + NET_DEVICE_BOTTOM_MARGIN;
+      // Right-align the network devices row
+      const totalNetWidth = networkDevices.length * NET_DEVICE_WIDTH + (networkDevices.length - 1) * NET_DEVICE_GAP;
+      let netX = zoneWidth - NETWORK_ZONE_PADDING - totalNetWidth;
+
+      for (const nd of networkDevices) {
+        const role = nd.tags.find(t => NETWORK_DEVICE_TAGS.has(t)) ?? "switch";
+        nodes.push({
+          id: nd.id,
+          type: "networkDevice",
+          position: { x: netX, y: netY },
+          parentId: `zone-${zone.id}`,
+          extent: "parent" as const,
+          draggable: false,
+          data: {
+            label: nd.label,
+            ip: nd.ip,
+            role,
+            width: NET_DEVICE_WIDTH,
+            height: NET_DEVICE_HEIGHT,
+          },
+          style: { width: NET_DEVICE_WIDTH, height: NET_DEVICE_HEIGHT },
+        });
+        netX += NET_DEVICE_WIDTH + NET_DEVICE_GAP;
+      }
     }
 
     zoneY += zoneHeight + NETWORK_ZONE_GAP;

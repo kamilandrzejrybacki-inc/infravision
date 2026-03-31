@@ -16,6 +16,7 @@ import ZoneNode from "@/components/nodes/ZoneNode";
 import HostNode from "@/components/nodes/HostNode";
 import ServiceNode from "@/components/nodes/ServiceNode";
 import K8sClusterNode from "@/components/nodes/K8sClusterNode";
+import NetworkDeviceNode from "@/components/nodes/NetworkDeviceNode";
 import Sidebar from "@/components/Sidebar";
 import DetailPanel from "@/components/DetailPanel";
 import { HighlightProvider, useHighlight } from "@/lib/highlight";
@@ -30,6 +31,7 @@ const nodeTypes: NodeTypes = {
   host: HostNode,
   service: ServiceNode,
   k8sCluster: K8sClusterNode,
+  networkDevice: NetworkDeviceNode,
 };
 
 interface ProcessedData {
