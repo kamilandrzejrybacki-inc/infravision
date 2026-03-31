@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate-data": "tsx scripts/generate-data.ts",
+    "generate-data": "npx tsx scripts/generate-data.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
