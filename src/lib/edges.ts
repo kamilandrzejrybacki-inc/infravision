@@ -1,4 +1,5 @@
 import type { Edge } from '@xyflow/react';
+import type { CSSProperties } from 'react';
 import type { Connection } from '../data/types';
 
 const DEPENDENCY_EDGE_STYLE = {
@@ -12,7 +13,7 @@ const PHYSICAL_EDGE_STYLE = {
   strokeWidth: 1.5,
 };
 
-const EDGE_LABEL_STYLE: { [key: string]: string | number } = {
+const EDGE_LABEL_STYLE: CSSProperties = {
   fontSize: '10px',
   background: 'hsla(222, 20%, 12%, 0.9)',
   padding: '2px 6px',
