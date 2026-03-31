@@ -1,25 +1,23 @@
 import type { Connection, Host, NetworkZone } from "@/data/types";
 import type { Node } from "@xyflow/react";
 
-const NETWORK_ZONE_PADDING = 60;
-const ZONE_LABEL_HEIGHT = 30;
-const HOST_GAP_X = 60;
-const HEADER_HEIGHT = 48;
-const SERVICE_NODE_HEIGHT = 32;
-const SERVICE_NODE_PADDING = 12;
-const SERVICE_LEFT_INDENT = 16;
-const BOTTOM_PADDING = 20;
-const K8S_CLUSTER_INDENT = 20;
-const K8S_HEADER_HEIGHT = 28;
-const NETWORK_ZONE_GAP = 80;
-const MIN_HOST_WIDTH = 220;
-const MAX_HOST_WIDTH = 520;
-const NET_DEVICE_WIDTH = 120;
-const NET_DEVICE_HEIGHT = 32;
-const NET_DEVICE_GAP = 12;
-const NET_DEVICE_BOTTOM_MARGIN = 16;
+// Layout spacing constants (4px grid)
+const ZONE_PADDING = 48;
+const ZONE_LABEL_HEIGHT = 28;
+const ZONE_GAP_Y = 60;
+const HOST_GAP_X = 40;
+const HOST_HEADER_HEIGHT = 44;
+const HOST_BOTTOM_PAD = 12;
+const SERVICE_ROW_HEIGHT = 30;
+const SERVICE_ROW_GAP = 4;
+const SERVICE_INDENT = 12;
+const K8S_LABEL_INDENT = 16;
+const K8S_LABEL_HEIGHT = 24;
+const K8S_LABEL_GAP = 6;
+const NET_DEVICE_GAP = 10;
+const NET_DEVICE_ROW_GAP = 12;
 
-// Reuse a single canvas element for all measurements
+// Canvas text measurement
 let _canvas: HTMLCanvasElement | null = null;
 function measureText(text: string, font: string): number {
   if (typeof document === "undefined") return text.length * 7.5;
@@ -29,78 +27,98 @@ function measureText(text: string, font: string): number {
   return ctx.measureText(text).width;
 }
 
-const F_INTER_13 = "13px Inter, sans-serif";
-const F_MONO_12 = "12px 'JetBrains Mono', monospace";
-const F_MONO_10 = "10px 'JetBrains Mono', monospace";
-const F_MONO_14B = "600 14px 'JetBrains Mono', monospace";
-const F_MONO_11 = "11px 'JetBrains Mono', monospace";
+// Font specs — must match actual component renders exactly
+const F_HOST_LABEL = "600 13px 'JetBrains Mono', monospace";
+const F_HOST_IP = "400 11px 'JetBrains Mono', monospace";
+const F_SERVICE = "400 13px Inter, sans-serif";
+const F_SERVICE_K8S = "400 12px 'JetBrains Mono', monospace";
+const F_BADGE = "400 10px 'JetBrains Mono', monospace";
+const F_NET_DEVICE = "500 10px 'JetBrains Mono', monospace";
+const F_NET_DEVICE_IP = "400 9px 'JetBrains Mono', monospace";
+const F_PHYS_BADGE = "400 10px 'JetBrains Mono', monospace";
 
-const GAP = 6;
-const SERVICE_H_PADDING = 20; // 10px left + 10px right inside service node
-const HOST_H_PADDING = 28;    // 14px left + 14px right inside host header
-const BADGE_H_PADDING = 14;   // 7px left + 7px right per badge
 const BADGE_DOT = 5;
+const BADGE_PAD = 14; // 7px each side
+const BADGE_GAP = 6;
 const DOT_SELF = 6;
-const DOT_SYNC = 8;
+const DOT_SYNC = 7;
+const DOT_GAP = 6;
 
 function computeHostWidth(
   host: Host,
   serviceLabel: Map<string, string>,
   depTargetIds: Set<string>,
+  connections: Connection[],
 ): number {
-  const isK8sHost = host.id === "lw-c1";
+  // Header: hostname + gap + IP
+  let headerW =
+    measureText(host.label, F_HOST_LABEL) + 8 +
+    measureText(host.ip ?? "", F_HOST_IP) +
+    28; // 14px padding each side
 
-  // Header: label + IP (+ physical badge on right — ignore for width, it's pushed right)
-  const headerContent =
-    measureText(host.label, F_MONO_14B) + GAP +
-    measureText(host.ip ?? "", F_MONO_11);
-  const headerNeeded = headerContent + HOST_H_PADDING;
+  // Physical connection badge in header (if present)
+  const physConn = connections.find(
+    c => c.type === "physical" && (c.source === host.id || c.target === host.id),
+  );
+  if (physConn) {
+    const badgeText = physConn.label || "link";
+    headerW += 12 + measureText("⇄ " + badgeText, F_PHYS_BADGE) + 16;
+  }
 
-  let maxRowNeeded = headerNeeded;
-
+  // Service rows: each is dots + name + badges
+  let maxServiceW = 0;
   const services = host.services;
   for (let i = 0; i < services.length; i++) {
     const svc = services[i];
     const isK8s = svc.type === "k8s";
     const prefix = isK8s ? (i === services.length - 1 ? "└ " : "├ ") : "";
-    const nameFont = isK8s ? F_MONO_12 : F_INTER_13;
-    const nameWidth = measureText(prefix + svc.label, nameFont);
+    const nameW = measureText(prefix + svc.label, isK8s ? F_SERVICE_K8S : F_SERVICE);
 
-    let dotsWidth = 0;
-    if (isK8s && svc.syncStatus) dotsWidth += DOT_SYNC + GAP;
-    if (depTargetIds.has(svc.id)) dotsWidth += DOT_SELF + GAP;
+    let dotsW = 0;
+    if (isK8s && svc.syncStatus) dotsW += DOT_SYNC + DOT_GAP;
+    if (depTargetIds.has(svc.id)) dotsW += DOT_SELF + DOT_GAP;
 
-    let badgesWidth = 0;
+    let badgesW = 0;
     for (const depId of svc.dependencies) {
       const depLabel = serviceLabel.get(depId) ?? depId;
-      const badgeWidth = BADGE_DOT + GAP + measureText(depLabel, F_MONO_10) + BADGE_H_PADDING;
-      badgesWidth += GAP + badgeWidth;
+      badgesW += BADGE_GAP + BADGE_DOT + 4 + measureText(depLabel, F_BADGE) + BADGE_PAD;
     }
 
-    const rowContent = dotsWidth + nameWidth + badgesWidth;
-    // service node width = HOST_WIDTH - 2*SERVICE_LEFT_INDENT, with its own H padding
-    const hostWidthNeeded = rowContent + SERVICE_H_PADDING + 2 * SERVICE_LEFT_INDENT;
-    if (hostWidthNeeded > maxRowNeeded) maxRowNeeded = hostWidthNeeded;
+    // "not deployed" badge
+    if (svc.active === false) {
+      badgesW += BADGE_GAP + measureText("not deployed", F_BADGE) + 14;
+    }
+
+    const rowW = dotsW + nameW + badgesW + 20; // 10px pad each side in service node
+    if (rowW > maxServiceW) maxServiceW = rowW;
   }
 
-  // +24px breathing room to compensate for font-loading timing
-  return Math.min(MAX_HOST_WIDTH, Math.max(MIN_HOST_WIDTH, Math.ceil(maxRowNeeded) + 24));
+  // Host width = max(header, widest service row + indent) + buffer
+  const contentW = Math.max(headerW, maxServiceW + 2 * SERVICE_INDENT);
+  return Math.ceil(contentW) + 16; // 16px buffer for font-loading timing
 }
 
-function computeHostHeight(host: Host, hostWidth: number): number {
-  const isK8sHost = host.id === "lw-c1";
-  let height = HEADER_HEIGHT + BOTTOM_PADDING;
-  for (const _svc of host.services) {
-    height += SERVICE_NODE_HEIGHT + SERVICE_NODE_PADDING;
-  }
-  if (isK8sHost) height += K8S_HEADER_HEIGHT + 8;
-  return height;
+function computeHostHeight(host: Host): number {
+  const isK8sHost = host.services.some(s => s.type === "k8s");
+  let h = HOST_HEADER_HEIGHT + HOST_BOTTOM_PAD;
+  if (isK8sHost) h += K8S_LABEL_HEIGHT + K8S_LABEL_GAP;
+  h += host.services.length * (SERVICE_ROW_HEIGHT + SERVICE_ROW_GAP);
+  return h;
+}
+
+function computeNetDeviceWidth(label: string, ip: string): number {
+  const iconW = 16;
+  const labelW = measureText(label, F_NET_DEVICE);
+  const ipW = ip ? measureText(ip, F_NET_DEVICE_IP) + 8 : 0;
+  return Math.ceil(iconW + labelW + ipW) + 24; // 12px pad each side
 }
 
 export interface LayoutResult {
   nodes: Node[];
   zonePositions: Record<string, { x: number; y: number; width: number; height: number }>;
 }
+
+const NETWORK_DEVICE_TAGS = new Set(["router", "switch", "firewall", "access-point"]);
 
 export function computeLayout(
   zones: NetworkZone[],
@@ -112,7 +130,7 @@ export function computeLayout(
   const nodes: Node[] = [];
   const zonePositions: Record<string, { x: number; y: number; width: number; height: number }> = {};
 
-  // Build lookup maps for width computation
+  // Build lookup maps
   const serviceLabel = new Map<string, string>();
   const depTargetIds = new Set<string>();
   for (const host of hosts) {
@@ -124,58 +142,61 @@ export function computeLayout(
 
   let zoneY = 0;
 
-  const NETWORK_DEVICE_TAGS = new Set(["router", "switch", "firewall", "access-point"]);
-
   for (const zone of zones) {
     const allZoneHosts = zone.hostIds
       .map(id => hosts.find(h => h.id === id)!)
       .filter(Boolean);
 
-    // Separate server hosts (have services) from network devices (router, switch, etc.)
-    const zoneHosts = allZoneHosts.filter(h => !h.tags.some(t => NETWORK_DEVICE_TAGS.has(t)));
-    const networkDevices = allZoneHosts.filter(h => h.tags.some(t => NETWORK_DEVICE_TAGS.has(t)));
+    const serverHosts = allZoneHosts.filter(h => !h.tags.some(t => NETWORK_DEVICE_TAGS.has(t)));
+    const netDevices = allZoneHosts.filter(h => h.tags.some(t => NETWORK_DEVICE_TAGS.has(t)));
 
-    const hostWidths = zoneHosts.map(h => computeHostWidth(h, serviceLabel, depTargetIds));
-    const hostHeights = zoneHosts.map((h, i) => computeHostHeight(h, hostWidths[i]));
-    const maxHostHeight = Math.max(...hostHeights, 180);
+    // Compute each host's dimensions from content
+    const hostSizes = serverHosts.map(h => ({
+      w: computeHostWidth(h, serviceLabel, depTargetIds, connections),
+      h: computeHostHeight(h),
+    }));
 
-    // Network devices row at the bottom of the zone
-    const netDeviceRowHeight = networkDevices.length > 0
-      ? NET_DEVICE_HEIGHT + NET_DEVICE_BOTTOM_MARGIN
-      : 0;
+    const maxHostH = hostSizes.length > 0 ? Math.max(...hostSizes.map(s => s.h)) : 0;
 
-    const hostsRowWidth =
-      hostWidths.reduce((sum, w) => sum + w, 0) +
-      (zoneHosts.length - 1) * HOST_GAP_X;
-    const netDevicesRowWidth =
-      networkDevices.length * NET_DEVICE_WIDTH +
-      (networkDevices.length - 1) * NET_DEVICE_GAP;
+    // Compute network device widths from content
+    const netSizes = netDevices.map(nd => ({
+      w: computeNetDeviceWidth(nd.label, nd.ip),
+      h: 32,
+    }));
 
-    const zoneWidth = Math.max(hostsRowWidth, netDevicesRowWidth) + 2 * NETWORK_ZONE_PADDING;
-    const zoneHeight = maxHostHeight + netDeviceRowHeight + 2 * NETWORK_ZONE_PADDING + ZONE_LABEL_HEIGHT;
+    const netRowH = netSizes.length > 0 ? 32 + NET_DEVICE_ROW_GAP : 0;
+
+    // Zone dimensions: wrap tightly around content
+    const hostsRowW = hostSizes.reduce((sum, s) => sum + s.w, 0) +
+      Math.max(0, serverHosts.length - 1) * HOST_GAP_X;
+    const netRowW = netSizes.reduce((sum, s) => sum + s.w, 0) +
+      Math.max(0, netDevices.length - 1) * NET_DEVICE_GAP;
+
+    const zoneW = Math.max(hostsRowW, netRowW) + 2 * ZONE_PADDING;
+    const zoneH = ZONE_LABEL_HEIGHT + maxHostH + netRowH + 2 * ZONE_PADDING;
 
     nodes.push({
       id: `zone-${zone.id}`,
       type: "zone",
       position: { x: 0, y: zoneY },
-      data: { label: `${zone.cidr} — ${zone.label}`, width: zoneWidth, height: zoneHeight },
+      data: { label: `${zone.cidr} — ${zone.label}`, width: zoneW, height: zoneH },
       draggable: false,
       selectable: false,
-      style: { width: zoneWidth, height: zoneHeight },
+      style: { width: zoneW, height: zoneH },
     });
 
-    zonePositions[zone.id] = { x: 0, y: zoneY, width: zoneWidth, height: zoneHeight };
+    zonePositions[zone.id] = { x: 0, y: zoneY, width: zoneW, height: zoneH };
 
-    let hostX = NETWORK_ZONE_PADDING;
-    const hostY = NETWORK_ZONE_PADDING + ZONE_LABEL_HEIGHT;
+    // Place server hosts
+    let hostX = ZONE_PADDING;
+    const hostY = ZONE_PADDING + ZONE_LABEL_HEIGHT;
 
-    for (let i = 0; i < zoneHosts.length; i++) {
-      const host = zoneHosts[i];
-      const hostWidth = hostWidths[i];
-      const hostHeight = hostHeights[i];
-      const isK8sHost = host.id === "lw-c1";
+    for (let i = 0; i < serverHosts.length; i++) {
+      const host = serverHosts[i];
+      const { w: hostW, h: hostH } = hostSizes[i];
+      const isK8sHost = host.services.some(s => s.type === "k8s");
       const physConn = connections.find(
-        c => c.type === "physical" && (c.source === host.id || c.target === host.id)
+        c => c.type === "physical" && (c.source === host.id || c.target === host.id),
       ) ?? null;
 
       nodes.push({
@@ -186,57 +207,62 @@ export function computeLayout(
         extent: "parent" as const,
         data: {
           label: host.label, ip: host.ip, color: host.color,
-          width: hostWidth, height: hostHeight, isK8sHost, physConn,
+          width: hostW, height: hostH, isK8sHost, physConn,
         },
         draggable: false,
-        style: { width: hostWidth, height: hostHeight },
+        style: { width: hostW, height: hostH },
       });
 
-      let serviceY = HEADER_HEIGHT;
+      let svcY = HOST_HEADER_HEIGHT;
+
       if (isK8sHost) {
         nodes.push({
           id: `${host.id}-k3s-label`,
           type: "k8sCluster",
-          position: { x: K8S_CLUSTER_INDENT, y: serviceY },
+          position: { x: K8S_LABEL_INDENT, y: svcY },
           parentId: host.id,
           extent: "parent" as const,
           draggable: false,
           selectable: false,
-          data: { width: hostWidth - 2 * K8S_CLUSTER_INDENT },
+          data: { width: hostW - 2 * K8S_LABEL_INDENT },
         });
-        serviceY += K8S_HEADER_HEIGHT + 8;
+        svcY += K8S_LABEL_HEIGHT + K8S_LABEL_GAP;
       }
 
-      for (const service of host.services) {
+      for (let si = 0; si < host.services.length; si++) {
+        const service = host.services[si];
         nodes.push({
           id: service.id,
           type: "service",
-          position: { x: SERVICE_LEFT_INDENT, y: serviceY },
+          position: { x: SERVICE_INDENT, y: svcY },
           parentId: host.id,
           extent: "parent" as const,
           data: {
             label: service.label, serviceData: service,
             isK8s: service.type === "k8s",
-            isLast: host.services.indexOf(service) === host.services.length - 1,
+            isLast: si === host.services.length - 1,
           },
           draggable: false,
-          style: { width: hostWidth - 2 * SERVICE_LEFT_INDENT },
+          style: { width: hostW - 2 * SERVICE_INDENT },
         });
-        serviceY += SERVICE_NODE_HEIGHT + SERVICE_NODE_PADDING;
+        svcY += SERVICE_ROW_HEIGHT + SERVICE_ROW_GAP;
       }
 
-      hostX += hostWidth + HOST_GAP_X;
+      hostX += hostW + HOST_GAP_X;
     }
 
-    // Network devices row at the bottom edge of the zone
-    if (networkDevices.length > 0) {
-      const netY = NETWORK_ZONE_PADDING + ZONE_LABEL_HEIGHT + maxHostHeight + NET_DEVICE_BOTTOM_MARGIN;
-      // Right-align the network devices row
-      const totalNetWidth = networkDevices.length * NET_DEVICE_WIDTH + (networkDevices.length - 1) * NET_DEVICE_GAP;
-      let netX = zoneWidth - NETWORK_ZONE_PADDING - totalNetWidth;
+    // Place network devices at bottom-right edge
+    if (netDevices.length > 0) {
+      const netY = hostY + maxHostH + NET_DEVICE_ROW_GAP;
+      const totalNetW = netSizes.reduce((sum, s) => sum + s.w, 0) +
+        (netDevices.length - 1) * NET_DEVICE_GAP;
+      let netX = zoneW - ZONE_PADDING - totalNetW;
 
-      for (const nd of networkDevices) {
+      for (let ni = 0; ni < netDevices.length; ni++) {
+        const nd = netDevices[ni];
+        const { w: ndW, h: ndH } = netSizes[ni];
         const role = nd.tags.find(t => NETWORK_DEVICE_TAGS.has(t)) ?? "switch";
+
         nodes.push({
           id: nd.id,
           type: "networkDevice",
@@ -244,20 +270,14 @@ export function computeLayout(
           parentId: `zone-${zone.id}`,
           extent: "parent" as const,
           draggable: false,
-          data: {
-            label: nd.label,
-            ip: nd.ip,
-            role,
-            width: NET_DEVICE_WIDTH,
-            height: NET_DEVICE_HEIGHT,
-          },
-          style: { width: NET_DEVICE_WIDTH, height: NET_DEVICE_HEIGHT },
+          data: { label: nd.label, ip: nd.ip, role, width: ndW, height: ndH },
+          style: { width: ndW, height: ndH },
         });
-        netX += NET_DEVICE_WIDTH + NET_DEVICE_GAP;
+        netX += ndW + NET_DEVICE_GAP;
       }
     }
 
-    zoneY += zoneHeight + NETWORK_ZONE_GAP;
+    zoneY += zoneH + ZONE_GAP_Y;
   }
 
   return { nodes, zonePositions };
