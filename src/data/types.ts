@@ -60,8 +60,9 @@ export const InfraVisionDataSchema = z.object({
     sources: z.object({
       netbox: z.string(),
       ansible: z.string(),
-      argocd: z.string(),
-      prometheus: z.string(),
+      argocd: z.string().optional(),
+      grafana: z.string().optional(),
+      prometheus: z.string().optional(),
     }),
   }),
   zones: z.array(NetworkZoneSchema),
