@@ -1,62 +1,37 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { dependencies, physicalConnections } from "@/data/infrastructure";
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
+import type { Connection } from "@/data/types";
+
+interface DependencyBadge {
+  targetId: string;
+  targetLabel: string;
+  color: string;
+  type: "dep" | "physical";
+}
 
 interface HighlightContextType {
   hoveredServiceId: string | null;
   highlightedIds: Set<string>;
   onServiceHover: (serviceId: string | null) => void;
+  getDirectConnections: (serviceId: string) => Set<string>;
+  getDependencyBadges: (serviceId: string) => DependencyBadge[];
+  getReverseDependencies: (serviceId: string) => string[];
+  getDepColor: (targetId: string) => string;
 }
 
 const HighlightContext = createContext<HighlightContextType>({
   hoveredServiceId: null,
   highlightedIds: new Set(),
   onServiceHover: () => {},
+  getDirectConnections: () => new Set(),
+  getDependencyBadges: () => [],
+  getReverseDependencies: () => [],
+  getDepColor: () => "220 20% 50%",
 });
 
 export function useHighlight() {
   return useContext(HighlightContext);
 }
 
-// Build a full dependency graph (bidirectional) so hovering any node in a chain highlights the whole chain
-function buildDepGraph(): Map<string, Set<string>> {
-  const graph = new Map<string, Set<string>>();
-  const addEdge = (a: string, b: string) => {
-    if (!graph.has(a)) graph.set(a, new Set());
-    if (!graph.has(b)) graph.set(b, new Set());
-    graph.get(a)!.add(b);
-    graph.get(b)!.add(a);
-  };
-  for (const dep of dependencies) {
-    addEdge(dep.source, dep.target);
-  }
-  for (const conn of physicalConnections) {
-    addEdge(conn.source, conn.target);
-  }
-  return graph;
-}
-
-function getConnectedSet(startId: string, graph: Map<string, Set<string>>): Set<string> {
-  const visited = new Set<string>();
-  const queue = [startId];
-  while (queue.length > 0) {
-    const current = queue.pop()!;
-    if (visited.has(current)) continue;
-    visited.add(current);
-    const neighbors = graph.get(current);
-    if (neighbors) {
-      for (const n of neighbors) {
-        if (!visited.has(n)) queue.push(n);
-      }
-    }
-  }
-  return visited;
-}
-
-const depGraph = buildDepGraph();
-
-// Assign a stable color to each dependency group (connected component)
-// Each unique dependency target gets a color
-const DEP_COLORS: Record<string, string> = {};
 const COLOR_PALETTE = [
   "35 80% 55%",    // amber
   "200 60% 55%",   // cyan
@@ -68,63 +43,63 @@ const COLOR_PALETTE = [
   "50 70% 50%",    // gold
 ];
 
-// Color by the dependency TARGET (the thing being depended on) — this groups visually
-let colorIdx = 0;
-for (const dep of dependencies) {
-  if (!DEP_COLORS[dep.target]) {
-    DEP_COLORS[dep.target] = COLOR_PALETTE[colorIdx % COLOR_PALETTE.length];
-    colorIdx++;
-  }
-}
-// Physical connections get their own color
-for (const conn of physicalConnections) {
-  const key = `phys-${conn.source}-${conn.target}`;
-  if (!DEP_COLORS[key]) {
-    DEP_COLORS[key] = "220 45% 55%"; // blue-grey for physical
-  }
-}
-
-export function getDepColor(targetId: string): string {
-  return DEP_COLORS[targetId] || "220 20% 50%";
-}
-
-// Get all dependency badges for a given service: what it depends ON, and a "physical" link if applicable
-export function getDependencyBadges(serviceId: string): { targetId: string; targetLabel: string; color: string; type: "dep" | "physical" }[] {
-  const badges: { targetId: string; targetLabel: string; color: string; type: "dep" | "physical" }[] = [];
-
-  for (const dep of dependencies) {
-    if (dep.source === serviceId) {
-      badges.push({
-        targetId: dep.target,
-        targetLabel: dep.target,
-        color: getDepColor(dep.target),
-        type: "dep",
-      });
+function buildDepColors(connections: Connection[]): Record<string, string> {
+  const colors: Record<string, string> = {};
+  let colorIdx = 0;
+  for (const conn of connections) {
+    if (conn.type === "dependency" && !colors[conn.target]) {
+      colors[conn.target] = COLOR_PALETTE[colorIdx % COLOR_PALETTE.length];
+      colorIdx++;
     }
   }
-
-  return badges;
+  return colors;
 }
 
-// Get reverse dependencies — services that depend ON this service
-export function getReverseDependencies(serviceId: string): string[] {
-  return dependencies.filter(d => d.target === serviceId).map(d => d.source);
+interface HighlightProviderProps {
+  children: ReactNode;
+  connections: Connection[];
 }
 
-// Get direct neighbors only (not full chain) for hover highlighting
-export function getDirectConnections(serviceId: string): Set<string> {
-  const connected = new Set<string>();
-  connected.add(serviceId);
-  for (const dep of dependencies) {
-    if (dep.source === serviceId) connected.add(dep.target);
-    if (dep.target === serviceId) connected.add(dep.source);
-  }
-  return connected;
-}
-
-export function HighlightProvider({ children }: { children: ReactNode }) {
+export function HighlightProvider({ children, connections }: HighlightProviderProps) {
   const [hoveredServiceId, setHoveredServiceId] = useState<string | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
+
+  const depColors = useMemo(() => buildDepColors(connections), [connections]);
+
+  const getDepColor = useCallback((targetId: string): string => {
+    return depColors[targetId] || "220 20% 50%";
+  }, [depColors]);
+
+  const getDirectConnections = useCallback((serviceId: string): Set<string> => {
+    const connected = new Set<string>();
+    connected.add(serviceId);
+    for (const conn of connections) {
+      if (conn.source === serviceId) connected.add(conn.target);
+      if (conn.target === serviceId) connected.add(conn.source);
+    }
+    return connected;
+  }, [connections]);
+
+  const getDependencyBadges = useCallback((serviceId: string): DependencyBadge[] => {
+    const badges: DependencyBadge[] = [];
+    for (const conn of connections) {
+      if (conn.type === "dependency" && conn.source === serviceId) {
+        badges.push({
+          targetId: conn.target,
+          targetLabel: conn.target,
+          color: getDepColor(conn.target),
+          type: "dep",
+        });
+      }
+    }
+    return badges;
+  }, [connections, getDepColor]);
+
+  const getReverseDependencies = useCallback((serviceId: string): string[] => {
+    return connections
+      .filter(conn => conn.type === "dependency" && conn.target === serviceId)
+      .map(conn => conn.source);
+  }, [connections]);
 
   const onServiceHover = useCallback((serviceId: string | null) => {
     setHoveredServiceId(serviceId);
@@ -133,10 +108,18 @@ export function HighlightProvider({ children }: { children: ReactNode }) {
     } else {
       setHighlightedIds(new Set());
     }
-  }, []);
+  }, [getDirectConnections]);
 
   return (
-    <HighlightContext.Provider value={{ hoveredServiceId, highlightedIds, onServiceHover }}>
+    <HighlightContext.Provider value={{
+      hoveredServiceId,
+      highlightedIds,
+      onServiceHover,
+      getDirectConnections,
+      getDependencyBadges,
+      getReverseDependencies,
+      getDepColor,
+    }}>
       {children}
     </HighlightContext.Provider>
   );

@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { NodeProps } from "@xyflow/react";
-import { useHighlight, getDependencyBadges, getReverseDependencies, getDepColor } from "@/lib/highlight";
+import { useHighlight } from "@/lib/highlight";
 
 interface ServiceData {
   label: string;
@@ -23,7 +23,7 @@ const syncColors: Record<string, string> = {
 const ServiceNode = memo(({ data, id }: NodeProps) => {
   const { label, serviceData, isK8s, isLast } = data as unknown as ServiceData;
   const prefix = isK8s ? (isLast ? "└ " : "├ ") : "";
-  const { hoveredServiceId, highlightedIds, onServiceHover } = useHighlight();
+  const { hoveredServiceId, highlightedIds, onServiceHover, getDependencyBadges, getReverseDependencies, getDepColor } = useHighlight();
 
   const badges = getDependencyBadges(id);
   const reverseDeps = getReverseDependencies(id);

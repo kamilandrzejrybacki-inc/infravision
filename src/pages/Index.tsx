@@ -18,9 +18,9 @@ import ServiceNode from "@/components/nodes/ServiceNode";
 import K8sClusterNode from "@/components/nodes/K8sClusterNode";
 import Sidebar from "@/components/Sidebar";
 import DetailPanel from "@/components/DetailPanel";
-import { HighlightProvider, useHighlight, getDirectConnections } from "@/lib/highlight";
-import { zones, loadInfrastructureData } from "@/data/infrastructure";
-import type { Host } from "@/data/types";
+import { HighlightProvider, useHighlight } from "@/lib/highlight";
+import { loadInfrastructureData } from "@/data/infrastructure";
+import type { Host, Connection, NetworkZone } from "@/data/types";
 import { computeLayout } from "@/lib/layout";
 import { buildEdges } from "@/lib/edges";
 
@@ -31,35 +31,26 @@ const nodeTypes: NodeTypes = {
   k8sCluster: K8sClusterNode,
 };
 
-function InfraCanvas() {
-  const { hoveredServiceId } = useHighlight();
+interface ProcessedData {
+  hosts: Host[];
+  zones: NetworkZone[];
+  connections: Connection[];
+  tags: string[];
+  metadata: { generated_at: string };
+}
+
+interface InfraCanvasProps {
+  processedData: ProcessedData;
+}
+
+function InfraCanvas({ processedData }: InfraCanvasProps) {
+  const { hoveredServiceId, getDirectConnections } = useHighlight();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeLayers, setActiveLayers] = useState(["physical", "services", "k8s"]);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [activeHosts, setActiveHosts] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<"service" | "host" | null>(null);
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['infrastructure'],
-    queryFn: loadInfrastructureData,
-    staleTime: Infinity,
-  });
-
-  const processedData = useMemo(() => {
-    if (!data) return null;
-    const hosts: Host[] = data.hosts.map(h => ({
-      ...h,
-      services: data.services.filter(s => s.hostId === h.id),
-    }));
-    return {
-      hosts,
-      zones: data.zones,
-      connections: data.connections,
-      tags: data.tags,
-      metadata: data.metadata,
-    };
-  }, [data]);
 
   useEffect(() => {
     if (processedData && activeHosts.length === 0) {
@@ -86,11 +77,11 @@ function InfraCanvas() {
   }, []);
 
   const layoutNodes = useMemo(() => {
-    const { nodes } = computeLayout(zones, activeLayers, activeTags, processedData?.hosts ?? []);
-    const allServices = processedData?.hosts.flatMap(h => h.services) ?? [];
+    const { nodes } = computeLayout(processedData.zones, activeLayers, activeTags, processedData.hosts);
+    const allServices = processedData.hosts.flatMap(h => h.services);
     const effectiveActiveHosts = activeHosts.length > 0
       ? activeHosts
-      : (processedData?.hosts.map(h => h.id) ?? []);
+      : processedData.hosts.map(h => h.id);
     const query = searchQuery.toLowerCase();
 
     return nodes.map(node => {
@@ -125,7 +116,7 @@ function InfraCanvas() {
   }, [activeLayers, activeTags, activeHosts, searchQuery, processedData]);
 
   const edges = useMemo(
-    () => buildEdges(processedData?.connections ?? []),
+    () => buildEdges(processedData.connections),
     [processedData]
   );
 
@@ -163,26 +154,6 @@ function InfraCanvas() {
     }
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
-        <div style={{ color: 'hsla(220, 15%, 65%, 0.8)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
-          Loading infrastructure data...
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
-        <div style={{ color: 'hsl(0, 65%, 55%)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
-          Failed to load infrastructure data
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden" }}>
       <Sidebar
@@ -194,9 +165,9 @@ function InfraCanvas() {
         onToggleTag={toggleTag}
         activeHosts={activeHosts}
         onToggleHost={toggleHost}
-        generatedAt={processedData?.metadata?.generated_at}
-        tags={processedData?.tags ?? []}
-        hosts={processedData?.hosts ?? []}
+        generatedAt={processedData.metadata?.generated_at}
+        tags={processedData.tags}
+        hosts={processedData.hosts}
       />
 
       <div style={{ flex: 1, position: "relative" }}>
@@ -255,9 +226,52 @@ function InfraCanvas() {
 }
 
 export default function Index() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['infrastructure'],
+    queryFn: loadInfrastructureData,
+    staleTime: Infinity,
+  });
+
+  const processedData = useMemo(() => {
+    if (!data) return null;
+    const hosts: Host[] = data.hosts.map(h => ({
+      ...h,
+      services: data.services.filter(s => s.hostId === h.id),
+    }));
+    return {
+      hosts,
+      zones: data.zones,
+      connections: data.connections,
+      tags: data.tags,
+      metadata: data.metadata,
+    };
+  }, [data]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
+        <div style={{ color: 'hsla(220, 15%, 65%, 0.8)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
+          Loading infrastructure data...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'hsl(222, 25%, 10%)' }}>
+        <div style={{ color: 'hsl(0, 65%, 55%)', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>
+          Failed to load infrastructure data
+        </div>
+      </div>
+    );
+  }
+
+  if (!processedData) return null;
+
   return (
-    <HighlightProvider>
-      <InfraCanvas />
+    <HighlightProvider connections={processedData.connections}>
+      <InfraCanvas processedData={processedData} />
     </HighlightProvider>
   );
 }
