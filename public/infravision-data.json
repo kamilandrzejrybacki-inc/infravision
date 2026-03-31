@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-03-31T13:51:19.432Z",
+    "generated_at": "2026-03-31T14:15:02.318Z",
     "sources": {
       "netbox": "http://192.168.0.105:8081",
       "ansible": "/home/kamil-rybacki/Code/ansible",
@@ -529,6 +529,46 @@
     }
   ],
   "connections": [
+    {
+      "source": "netbox",
+      "target": "shared-postgres",
+      "type": "dependency"
+    },
+    {
+      "source": "netbox",
+      "target": "shared-redis",
+      "type": "dependency"
+    },
+    {
+      "source": "paperless",
+      "target": "shared-postgres",
+      "type": "dependency"
+    },
+    {
+      "source": "paperless",
+      "target": "shared-redis",
+      "type": "dependency"
+    },
+    {
+      "source": "n8n",
+      "target": "shared-postgres",
+      "type": "dependency"
+    },
+    {
+      "source": "n8n",
+      "target": "shared-redis",
+      "type": "dependency"
+    },
+    {
+      "source": "grafana",
+      "target": "mimir",
+      "type": "dependency"
+    },
+    {
+      "source": "grafana",
+      "target": "loki",
+      "type": "dependency"
+    },
     {
       "source": "lw-main",
       "target": "lw-nas",

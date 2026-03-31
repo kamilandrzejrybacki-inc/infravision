@@ -7,6 +7,7 @@ import { discoverCaddyRoutes, discoverArgoApps, discoverK8sHost } from "./pipeli
 import { discoverArgoCDApps } from "./pipeline/argocd.js";
 import { discoverRunningContainers } from "./pipeline/prometheus.js";
 import { discoverPhysicalTopology } from "./pipeline/topology.js";
+import { discoverDependencies } from "./pipeline/dependencies.js";
 import { discoverDashboards, matchDashboardsToServices } from "./pipeline/grafana.js";
 
 loadDotEnv({ path: resolve(import.meta.dirname, "../.env") });
@@ -157,6 +158,10 @@ async function main() {
   const allServices = [...serviceMap.values()];
   console.log(`\n  Total services: ${allServices.length} (${k8sServices.length} K8s + ${dockerServices.length} Docker)`);
 
+  // ── Step 2b: Dependency Discovery ───────────────────────────────
+  const runningIds = new Set(allServices.map(s => s.id));
+  const depLinks = await discoverDependencies(config, runningIds);
+
   // ── Step 3: Enrichment (Grafana + Caddy quickLinks) ────────────
   console.log("\n── Step 3: Enrichment ──");
 
@@ -243,13 +248,11 @@ async function main() {
 
   // Build connections: service dependencies + physical Ethernet links
   const connections = [
-    ...allServices.flatMap(s =>
-      s.dependencies.map(dep => ({
-        source: s.id,
-        target: dep,
-        type: "dependency" as const,
-      }))
-    ),
+    ...depLinks.map(d => ({
+      source: d.source,
+      target: d.target,
+      type: "dependency" as const,
+    })),
     ...topology.links.map(link => ({
       source: link.source,
       target: link.target,
