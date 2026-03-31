@@ -17,9 +17,28 @@ if [ -d "${ANSIBLE_PATH:-}" ]; then
   (cd "$ANSIBLE_PATH" && git pull --ff-only 2>/dev/null || true)
 fi
 
+# ── Auto-discover credentials not in .env ────────────────────────
+# ArgoCD: fetch admin password from the K8s secret via SSH to the K8s node
+# The K8s node is discovered from the Ansible inventory
+if [ -z "${ARGOCD_PASSWORD:-}" ] && [ -z "${ARGOCD_TOKEN:-}" ]; then
+  echo "── Discovering ArgoCD credentials ──"
+  K8S_HOST=$(grep -r 'ansible_host=' "${ANSIBLE_PATH:-}/k8s/k3s-setup/inventory/" 2>/dev/null | grep -oP 'ansible_host=\K[\d.]+' | head -1)
+  if [ -n "$K8S_HOST" ]; then
+    ARGOCD_PASSWORD=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "kamil@${K8S_HOST}" \
+      "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d" 2>/dev/null || echo "")
+    if [ -n "$ARGOCD_PASSWORD" ]; then
+      # Discover ArgoCD URL from k3s group_vars
+      ARGOCD_PORT=$(grep -oP 'argocd_nodeport_http:\s*\K\d+' "${ANSIBLE_PATH:-}/k8s/k3s-setup/group_vars/all.yml" 2>/dev/null || echo "30080")
+      export ARGOCD_URL="http://${K8S_HOST}:${ARGOCD_PORT}"
+      export ARGOCD_PASSWORD
+      echo "  ArgoCD: ${ARGOCD_URL} (credentials from K8s secret)"
+    else
+      echo "  ArgoCD: could not fetch credentials — falling back to Ansible discovery"
+    fi
+  fi
+fi
+
 # Run pipeline + build inside node container
-# Copy source to a temp dir inside the container (not bind mount)
-# so npm ci works without permission issues, then copy dist/ back
 echo "── Building ──"
 docker run --rm \
   --name infravision-builder \
@@ -31,8 +50,11 @@ docker run --rm \
   -e NETBOX_TOKEN="${NETBOX_TOKEN}" \
   -e INFRA_DOMAIN="${INFRA_DOMAIN}" \
   -e ANSIBLE_PATH=/ansible \
-  -e GRAFANA_URL="${GRAFANA_URL}" \
-  -e GRAFANA_TOKEN="${GRAFANA_TOKEN}" \
+  -e GRAFANA_URL="${GRAFANA_URL:-}" \
+  -e GRAFANA_TOKEN="${GRAFANA_TOKEN:-}" \
+  -e ARGOCD_URL="${ARGOCD_URL:-}" \
+  -e ARGOCD_TOKEN="${ARGOCD_TOKEN:-}" \
+  -e ARGOCD_PASSWORD="${ARGOCD_PASSWORD:-}" \
   node:20-alpine \
   sh -c '
     cp -a /src /app && cd /app &&
