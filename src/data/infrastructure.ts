@@ -1,41 +1,6 @@
-export interface QuickLink {
-  label: string;
-  url: string;
-  icon: string;
-}
+import type { Service, Host, NetworkZone, Connection, InfraVisionData } from './types';
 
-export interface Service {
-  id: string;
-  label: string;
-  description: string;
-  hostId: string;
-  type: "docker" | "k8s" | "native";
-  ports: number[];
-  image?: string;
-  chart?: string;
-  dependencies: string[];
-  tags: string[];
-  quickLinks: QuickLink[];
-  syncStatus?: "synced" | "out-of-sync" | "failed";
-}
-
-export interface Host {
-  id: string;
-  label: string;
-  ip: string;
-  zone: string;
-  color: string;
-  services: Service[];
-  tags: string[];
-}
-
-export interface NetworkZone {
-  id: string;
-  cidr: string;
-  label: string;
-  hostIds: string[];
-}
-
+// Deprecated: Use Connection type from types.ts instead
 export interface Dependency {
   source: string;
   target: string;
