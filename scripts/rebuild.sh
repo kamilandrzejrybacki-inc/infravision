@@ -35,7 +35,7 @@ docker run --rm \
   node:20-alpine \
   sh -c '
     cp -a /src /app && cd /app &&
-    npm ci --silent &&
+    npm ci --legacy-peer-deps --silent &&
     npm run generate-data &&
     npm run build &&
     rm -rf /dist-out/* &&
