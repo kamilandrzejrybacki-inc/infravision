@@ -1,7 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
-import { existsSync } from "node:fs";
-import type { PhysicalDevice, NetworkPrefix } from "./types.js";
+import type { PhysicalDevice, PhysicalConnection } from "./types.js";
 
 interface TopologyConfig {
   ansiblePath: string;
@@ -30,13 +27,14 @@ export interface PhysicalTopology {
 /**
  * Discover physical Ethernet topology dynamically from:
  * - NetBox devices: any IP-only device ending in .1 is a candidate router
- * - Ansible nas-link-setup: direct link between hosts (reads IPs + interfaces from group_vars)
+ * - NetBox cables: direct point-to-point links between named devices
  * - Subnet grouping: hosts sharing a /24 prefix are assumed to share a switch
  */
 export async function discoverPhysicalTopology(
   config: TopologyConfig,
   netboxDevices: PhysicalDevice[],
   knownHosts: Map<string, string>, // id → ip
+  netboxCables: PhysicalConnection[] = [],
 ): Promise<PhysicalTopology> {
   console.log("[topology] Discovering physical connections...");
 
@@ -59,61 +57,23 @@ export async function discoverPhysicalTopology(
     }
   }
 
-  // ── 2. Discover direct links from Ansible ─────────────────────
-  // Scan infrastructure/*-link-setup/ directories for point-to-point connections
-  const infraDir = join(config.ansiblePath, "infrastructure");
-  if (existsSync(infraDir)) {
-    const entries = await readdir(infraDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory() || !entry.name.includes("link")) continue;
-      const groupVars = join(infraDir, entry.name, "group_vars/all.yml");
-      if (!existsSync(groupVars)) continue;
-
-      const content = await readFile(groupVars, "utf-8");
-
-      // Look for paired endpoint definitions (node1/node2 or host_a/nas patterns)
-      // Extract all IPs and interface names
-      const ipVars = [...content.matchAll(/^(\w+(?:_lan)?_ip):\s*["']?(\d+\.\d+\.\d+\.\d+)/gm)];
-      const ifaceVars = [...content.matchAll(/^(\w+_iface):\s*["']?(\S+)/gm)];
-      const linkLabel = extractVar(content, "node1_nas_link_iface")?.startsWith("enx")
-        ? "USB-eth" // USB ethernet adapter
-        : entry.name.replace(/-setup$/, "").replace(/-/g, " ");
-
-      // Find pairs: endpoints with different subnet
-      const endpoints: Array<{ id: string; ip: string; iface: string }> = [];
-      for (const [, varName, ip] of ipVars) {
-        // Resolve IP to a known host
-        let hostId = "";
-        for (const [id, hostIp] of knownHosts) {
-          if (hostIp === ip) { hostId = id; break; }
-        }
-        const ifaceKey = varName.replace(/_(?:lan_)?ip$/, "_iface");
-        const iface = ifaceVars.find(([, k]) => k === ifaceKey)?.[2] ?? "";
-        if (hostId) {
-          endpoints.push({ id: hostId, ip, iface });
-        }
-      }
-
-      // Create links between endpoints on different subnets
-      for (let i = 0; i < endpoints.length; i++) {
-        for (let j = i + 1; j < endpoints.length; j++) {
-          const a = endpoints[i], b = endpoints[j];
-          if (getSubnet(a.ip) !== getSubnet(b.ip)) {
-            const key = [a.id, b.id].sort().join("↔");
-            if (!links.some(l => [l.source, l.target].sort().join("↔") === key)) {
-              links.push({
-                source: a.id,
-                target: b.id,
-                label: linkLabel,
-                sourceInterface: a.iface || undefined,
-                targetInterface: b.iface || undefined,
-              });
-              console.log(`  Direct link: ${a.id} ←${linkLabel}→ ${b.id}`);
-            }
-          }
-        }
-      }
-    }
+  // ── 2. Direct links from NetBox cables ────────────────────────
+  // Any cable between two named hosts that are in knownHosts = direct physical link
+  const knownHostNames = new Set(knownHosts.keys());
+  for (const cable of netboxCables) {
+    const src = cable.sourceDevice;
+    const tgt = cable.targetDevice;
+    if (!knownHostNames.has(src) || !knownHostNames.has(tgt)) continue;
+    const key = [src, tgt].sort().join("↔");
+    if (links.some(l => [l.source, l.target].sort().join("↔") === key)) continue;
+    links.push({
+      source: src,
+      target: tgt,
+      label: cable.label || "Direct",
+      sourceInterface: cable.sourceInterface || undefined,
+      targetInterface: cable.targetInterface || undefined,
+    });
+    console.log(`  Direct link (NetBox cable): ${src} ←→ ${tgt}`);
   }
 
   // ── 3. LAN switch topology (derived from subnet grouping) ─────
@@ -155,11 +115,6 @@ export async function discoverPhysicalTopology(
 
   console.log(`[topology] Found ${networkDevices.length} network devices, ${links.length} physical links`);
   return { networkDevices, links };
-}
-
-function extractVar(yaml: string, name: string): string {
-  const match = yaml.match(new RegExp(`^${name}:\\s*["']?([^"'\\s]+)`, "m"));
-  return match ? match[1] : "";
 }
 
 /** Extract /24 subnet prefix from IP (e.g., "x.y.z.w" → "x.y.z") */

@@ -198,7 +198,7 @@ async function main() {
     if (data.ip) hostIPs.set(id, data.ip);
   }
 
-  const topology = await discoverPhysicalTopology(config, physical.devices, hostIPs);
+  const topology = await discoverPhysicalTopology(config, physical.devices, hostIPs, physical.connections);
 
   // Add network devices (router, switch) as hosts
   for (const nd of topology.networkDevices) {
